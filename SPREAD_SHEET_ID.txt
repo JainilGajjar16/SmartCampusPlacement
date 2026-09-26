@@ -1,0 +1,23 @@
+SPREAD SHEET ID :
+https://docs.google.com/spreadsheets/d/1kFWw1KCBl_ZwCh8A5LfGzDkPjGHg3wlYylcgBhmLl-c/edit?pli=1&gid=0#gid=0
+
+const SPREADSHEET_ID =
+  "1kFWw1KCBl_ZwCh8A5LfGzDkPjGHg3wlYylcgBhmLl-c";
+
+const USERS_SHEET_NAME =
+  "Users";
+
+const RESUMES_SHEET_NAME =
+  "Resumes";
+
+const STUDENT_PROFILES_SHEET_NAME =
+  "StudentProfiles";
+
+const JOBS_SHEET_NAME =
+  "Jobs";
+
+const APPLICATIONS_SHEET_NAME =
+  "Applications";
+
+const RESUME_FOLDER_ID =
+  "14QNAfdFhtlC3OCQkgal_Jg50voIqxjGT";
