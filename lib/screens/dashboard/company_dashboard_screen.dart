@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/application_status_helper.dart';
+import '../../core/utils/candidate_ranking_calculator.dart';
 import '../../models/job.dart';
+import '../../models/recruiter_feedback.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
@@ -951,7 +953,7 @@ class CompanyJobCard extends StatelessWidget {
   }
 }
 
-/// 3. APPLICANTS SCREEN - Real Google Sheets Applications
+/// 3. APPLICANTS SCREEN - Real Google Sheets Applications & Candidate Ranking (Phase 13)
 class ApplicantsScreen extends StatefulWidget {
   const ApplicantsScreen({super.key});
 
@@ -961,7 +963,9 @@ class ApplicantsScreen extends StatefulWidget {
 
 class _ApplicantsScreenState extends State<ApplicantsScreen> {
   bool _isLoading = true;
+  bool _sortByRanking = true;
   List<Map<String, dynamic>> _applicants = [];
+  Map<String, RecruiterFeedback> _feedbackMap = {};
 
   @override
   void initState() {
@@ -970,18 +974,41 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
   }
 
   Future<void> _loadApplicants() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final session = UserSession();
+    final String companyId = session.userId ?? '';
+
     try {
-      final res = await GoogleSheetsService().getCompanyApplications(
-        companyId: session.userId ?? '',
+      // 1. Fetch real company applications from Google Sheets
+      final appsRes = await GoogleSheetsService().getCompanyApplications(
+        companyId: companyId,
       );
       final List<Map<String, dynamic>> apps =
-          res['applications'] as List<Map<String, dynamic>>? ?? [];
+          appsRes['applications'] as List<Map<String, dynamic>>? ?? [];
+
+      // 2. Fetch real recruiter feedback from Google Sheets (Phase 13)
+      final fbRes = await GoogleSheetsService().getRecruiterFeedback(
+        companyId: companyId,
+      );
+      final List<RecruiterFeedback> fbList =
+          fbRes['feedbackList'] as List<RecruiterFeedback>? ?? [];
+
+      final Map<String, RecruiterFeedback> fbMap = {};
+      for (var fb in fbList) {
+        if (fb.applicationId.isNotEmpty) {
+          fbMap[fb.applicationId] = fb;
+        }
+        final altKey = '${fb.jobId}_${fb.studentId}';
+        if (altKey.isNotEmpty) {
+          fbMap[altKey] = fb;
+        }
+      }
 
       if (mounted) {
         setState(() {
           _applicants = apps;
+          _feedbackMap = fbMap;
           _isLoading = false;
         });
       }
@@ -990,6 +1017,39 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  RecruiterFeedback? _getFeedbackForApp(Map<String, dynamic> app) {
+    final appId = app['applicationId']?.toString() ?? '';
+    if (appId.isNotEmpty && _feedbackMap.containsKey(appId)) {
+      return _feedbackMap[appId];
+    }
+    final altKey = '${app['jobId']}_${app['userId']}';
+    if (_feedbackMap.containsKey(altKey)) {
+      return _feedbackMap[altKey];
+    }
+    return null;
+  }
+
+  List<CandidateRankingItem> _getRankedCandidates() {
+    final List<CandidateRankingItem> items = _applicants.map((app) {
+      final fb = _getFeedbackForApp(app);
+      final score = CandidateRankingCalculator.calculateCandidateScore(
+        feedback: fb,
+        status: app['status']?.toString(),
+        cgpaStr: app['cgpa']?.toString(),
+      );
+      return CandidateRankingItem(
+        application: app,
+        feedback: fb,
+        candidateScore: score,
+      );
+    }).toList();
+
+    if (_sortByRanking) {
+      return CandidateRankingCalculator.sortCandidatesByRanking(items);
+    }
+    return items;
   }
 
   Future<void> _updateStatus(String appId, String newStatus) async {
@@ -1053,11 +1113,181 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
     );
   }
 
+  void _showFeedbackDialog(Map<String, dynamic> app) {
+    final session = UserSession();
+    final currentCompanyId = session.userId ?? '';
+    final appCompanyId = (app['companyId'] ?? app['company'] ?? '').toString();
+
+    // Security & Data Isolation Validation: Verify recruiter can only submit feedback for their own company's applications
+    if (currentCompanyId.isNotEmpty &&
+        appCompanyId.isNotEmpty &&
+        !appCompanyId.toLowerCase().contains(currentCompanyId.toLowerCase()) &&
+        !currentCompanyId.toLowerCase().contains(appCompanyId.toLowerCase())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unauthorized: You can only submit feedback for your company\'s applications.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final existingFb = _getFeedbackForApp(app);
+    double rating = existingFb?.rating ?? 4.0;
+    if (rating <= 0) rating = 4.0;
+    final commentController = TextEditingController(text: existingFb?.feedback ?? '');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  const Icon(Icons.rate_review, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Rate & Feedback: ${app['studentName'] ?? app['userId']}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Job: ${app['title'] ?? app['jobId'] ?? 'Applied Role'}',
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    ),
+                    Text(
+                      'Application ID: ${app['applicationId'] ?? 'N/A'}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Candidate Rating (1.0 to 5.0):',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (index) {
+                        final starValue = (index + 1).toDouble();
+                        return IconButton(
+                          icon: Icon(
+                            rating >= starValue ? Icons.star : Icons.star_border,
+                            color: Colors.amber,
+                            size: 32,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              rating = starValue;
+                            });
+                          },
+                        );
+                      }),
+                    ),
+                    Center(
+                      child: Text(
+                        '⭐ ${rating.toStringAsFixed(1)} / 5.0',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Recruiter Feedback / Evaluation Notes:',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: commentController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Strong technical skills, great communication, recommended for interview.',
+                        hintStyle: const TextStyle(fontSize: 12, color: AppColors.textLight),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.send, size: 16, color: Colors.white),
+                  label: const Text('Submit Feedback', style: TextStyle(color: Colors.white)),
+                  onPressed: () async {
+                    Navigator.pop(dialogContext);
+
+                    final feedbackObj = RecruiterFeedback(
+                      feedbackId: 'FB${DateTime.now().millisecondsSinceEpoch}',
+                      applicationId: (app['applicationId'] ?? '').toString(),
+                      jobId: (app['jobId'] ?? '').toString(),
+                      studentId: (app['userId'] ?? app['studentId'] ?? '').toString(),
+                      companyId: session.userId ?? appCompanyId,
+                      rating: rating,
+                      feedback: commentController.text.trim(),
+                      createdAt: DateTime.now().toIso8601String().split('T').first,
+                    );
+
+                    final scaffoldMessenger = ScaffoldMessenger.of(context);
+                    final submitRes = await GoogleSheetsService().submitRecruiterFeedback(
+                      feedback: feedbackObj,
+                    );
+
+                    if (!mounted) return;
+
+                    if (submitRes['success'] == true) {
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Recruiter feedback saved to Google Sheets!'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      _loadApplicants();
+                    } else {
+                      scaffoldMessenger.showSnackBar(
+                        SnackBar(
+                          content: Text(submitRes['message'] ?? 'Failed to submit feedback.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final rankedCandidates = _getRankedCandidates();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Applicants'),
+        title: const Text('Applicants & Ranking'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -1081,72 +1311,287 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                     ],
                   ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _loadApplicants,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _applicants.length,
-                    itemBuilder: (context, index) {
-                      final app = _applicants[index];
-                      final name = (app['studentName'] ?? '').toString().isNotEmpty
-                          ? app['studentName'].toString()
-                          : (app['userId'] ?? 'Student');
-                      final rawStatus = (app['status'] ?? 'Applied').toString();
-                      final statusColor = ApplicationStatusHelper.getStatusColor(rawStatus);
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        elevation: 2,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(14),
-                          leading: CircleAvatar(
-                            backgroundColor: statusColor.withValues(alpha: 0.1),
-                            child: Text(
-                              name.isNotEmpty ? name[0].toUpperCase() : 'S',
-                              style: TextStyle(
-                                  color: statusColor, fontWeight: FontWeight.bold),
+              : Column(
+                  children: [
+                    // Sorting & Candidate Ranking Header Bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Candidates: ${rankedCandidates.length}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text('Role: ${app['title'] ?? app['jobId'] ?? 'Applied Position'}'),
-                              Text(
-                                'CGPA: ${app['cgpa']?.toString().isNotEmpty == true ? app['cgpa'] : 'N/A'} | Status: $rawStatus',
-                              ),
-                            ],
-                          ),
-                          trailing: ActionChip(
+                          FilterChip(
                             avatar: Icon(
-                              ApplicationStatusHelper.getStatusIcon(rawStatus),
+                              Icons.star_rate_rounded,
                               size: 16,
-                              color: statusColor,
+                              color: _sortByRanking ? Colors.white : AppColors.primary,
                             ),
                             label: Text(
-                              rawStatus,
+                              _sortByRanking ? 'Sorted by Rank Score' : 'Sort by Rank Score',
                               style: TextStyle(
-                                color: statusColor,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                color: _sortByRanking ? Colors.white : AppColors.primary,
                               ),
                             ),
-                            backgroundColor: ApplicationStatusHelper.getStatusBgColor(rawStatus),
-                            side: BorderSide(
-                              color: ApplicationStatusHelper.getStatusBorderColor(rawStatus),
-                            ),
-                            onPressed: () => _showStatusDialog(app),
+                            selected: _sortByRanking,
+                            selectedColor: AppColors.primary,
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                            onSelected: (val) {
+                              setState(() {
+                                _sortByRanking = val;
+                              });
+                            },
                           ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _loadApplicants,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: rankedCandidates.length,
+                          itemBuilder: (context, index) {
+                            final item = rankedCandidates[index];
+                            final app = item.application;
+                            final name = (app['studentName'] ?? '').toString().isNotEmpty
+                                ? app['studentName'].toString()
+                                : (app['userId'] ?? 'Student');
+                            final rawStatus = (app['status'] ?? 'Applied').toString();
+                            final statusColor = ApplicationStatusHelper.getStatusColor(rawStatus);
+                            final fb = item.feedback;
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: item.hasFeedback
+                                      ? Colors.amber.withValues(alpha: 0.5)
+                                      : Colors.grey.withValues(alpha: 0.2),
+                                  width: item.hasFeedback ? 1.5 : 1.0,
+                                ),
+                              ),
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Top Row: Avatar, Name, Job Role, Status Chip
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: statusColor.withValues(alpha: 0.15),
+                                          radius: 22,
+                                          child: Text(
+                                            name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                name,
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Role: ${app['title'] ?? app['jobId'] ?? 'Applied Position'}',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: AppColors.textSecondary,
+                                                ),
+                                              ),
+                                              Text(
+                                                'CGPA: ${app['cgpa']?.toString().isNotEmpty == true ? app['cgpa'] : 'N/A'} | ID: ${app['applicationId'] ?? 'N/A'}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: AppColors.textLight,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        ActionChip(
+                                          avatar: Icon(
+                                            ApplicationStatusHelper.getStatusIcon(rawStatus),
+                                            size: 14,
+                                            color: statusColor,
+                                          ),
+                                          label: Text(
+                                            rawStatus,
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                          backgroundColor: ApplicationStatusHelper.getStatusBgColor(rawStatus),
+                                          side: BorderSide(
+                                            color: ApplicationStatusHelper.getStatusBorderColor(rawStatus),
+                                          ),
+                                          onPressed: () => _showStatusDialog(app),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 10),
+                                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                                    const SizedBox(height: 10),
+
+                                    // Phase 13 Candidate Score & Recruiter Feedback Display
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        // Candidate Rank Score Badge
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(
+                                              color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.analytics_outlined, size: 14, color: Color(0xFF4F46E5)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Candidate Score: ${item.candidateScore.toStringAsFixed(1)}/100',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF4F46E5),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Recruiter Feedback / Rate Action Button
+                                        OutlinedButton.icon(
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            side: BorderSide(
+                                              color: item.hasFeedback ? Colors.amber.shade700 : AppColors.primary,
+                                            ),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          icon: Icon(
+                                            item.hasFeedback ? Icons.star : Icons.rate_review_outlined,
+                                            size: 14,
+                                            color: item.hasFeedback ? Colors.amber.shade700 : AppColors.primary,
+                                          ),
+                                          label: Text(
+                                            item.hasFeedback ? 'Edit Feedback' : 'Rate & Feedback',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: item.hasFeedback ? Colors.amber.shade700 : AppColors.primary,
+                                            ),
+                                          ),
+                                          onPressed: () => _showFeedbackDialog(app),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    // Stored Recruiter Feedback Details OR Empty State
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: item.hasFeedback
+                                            ? Colors.amber.withValues(alpha: 0.08)
+                                            : Colors.grey.withValues(alpha: 0.06),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: item.hasFeedback
+                                              ? Colors.amber.withValues(alpha: 0.25)
+                                              : Colors.transparent,
+                                        ),
+                                      ),
+                                      child: item.hasFeedback
+                                          ? Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.star, size: 14, color: Colors.amber),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Recruiter Rating: ${fb!.rating.toStringAsFixed(1)} / 5.0',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Colors.amber,
+                                                      ),
+                                                    ),
+                                                    const Spacer(),
+                                                    if (fb.createdAt.isNotEmpty)
+                                                      Text(
+                                                        fb.createdAt,
+                                                        style: const TextStyle(
+                                                          fontSize: 10,
+                                                          color: AppColors.textLight,
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                                if (fb.feedback.isNotEmpty) ...[
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Feedback: "${fb.feedback}"',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontStyle: FontStyle.italic,
+                                                      color: AppColors.textPrimary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            )
+                                          : const Text(
+                                              'No recruiter feedback yet',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontStyle: FontStyle.italic,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
     );
   }

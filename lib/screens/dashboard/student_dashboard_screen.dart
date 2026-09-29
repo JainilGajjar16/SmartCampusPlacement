@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../models/student_profile.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
@@ -22,6 +23,31 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   void initState() {
     super.initState();
     _fetchUnreadNotifications();
+    _fetchStudentProfile();
+  }
+
+  Future<void> _fetchStudentProfile() async {
+    final session = UserSession();
+    final userId = session.userId;
+    if (userId == null || userId.isEmpty) return;
+
+    if (session.name == null || session.name!.trim().isEmpty) {
+      final result = await _apiService.getStudentProfile(userId: userId);
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final profile = StudentProfile.fromJson(result);
+        if (profile.name.trim().isNotEmpty) {
+          session.setSession(
+            userId: userId,
+            role: session.role ?? 'Student',
+            name: profile.name.trim(),
+            email: profile.email.isNotEmpty ? profile.email : session.email,
+          );
+          setState(() {});
+        }
+      }
+    }
   }
 
   Future<void> _fetchUnreadNotifications() async {
@@ -61,8 +87,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  void _navigateToProfile(BuildContext context) {
-    Navigator.pushNamed(context, AppRoutes.profile);
+  Future<void> _navigateToProfile(BuildContext context) async {
+    await Navigator.pushNamed(context, AppRoutes.profile);
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _navigateToResume(BuildContext context) {
@@ -84,9 +112,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final session = UserSession();
-    final String displayName = (session.name != null && session.name!.isNotEmpty)
-        ? session.name!
-        : (session.userId ?? 'K001');
+    final String userId = session.userId ?? 'K001';
+    final String displayName = (session.name != null && session.name!.trim().isNotEmpty)
+        ? '${session.name!.trim()} ($userId)'
+        : userId;
 
     return Scaffold(
       backgroundColor: AppColors.background,

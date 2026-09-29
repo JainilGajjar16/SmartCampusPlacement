@@ -6,6 +6,7 @@ import '../core/constants/app_strings.dart';
 import '../models/application.dart';
 import '../models/job.dart';
 import '../models/notification_item.dart';
+import '../models/recruiter_feedback.dart';
 import '../models/student_profile.dart';
 
 /// Single API service responsible for communicating with the existing
@@ -31,7 +32,10 @@ class GoogleSheetsService {
     } on SocketException {
       return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {'success': false, 'message': 'Connection timed out. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Connection timed out. Please try again.',
+      };
     } catch (e) {
       return {'success': false, 'message': AppStrings.apiServerError};
     }
@@ -44,11 +48,13 @@ class GoogleSheetsService {
     required String password,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'login',
-        'userId': userId.trim(),
-        'password': password,
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'login',
+          'userId': userId.trim(),
+          'password': password,
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -56,9 +62,15 @@ class GoogleSheetsService {
     } on SocketException {
       return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {'success': false, 'message': 'Request timed out. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Request timed out. Please try again.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'An unexpected error occurred during login.'};
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred during login.',
+      };
     }
   }
 
@@ -75,17 +87,19 @@ class GoogleSheetsService {
     String linkedin = '',
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'register',
-        'userId': userId.trim(),
-        'name': name.trim(),
-        'email': email.trim(),
-        'mobile': mobile.trim(),
-        'password': password,
-        'role': role.trim(),
-        'github': github,
-        'linkedin': linkedin,
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'register',
+          'userId': userId.trim(),
+          'name': name.trim(),
+          'email': email.trim(),
+          'mobile': mobile.trim(),
+          'password': password,
+          'role': role.trim(),
+          'github': github,
+          'linkedin': linkedin,
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -93,9 +107,15 @@ class GoogleSheetsService {
     } on SocketException {
       return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {'success': false, 'message': 'Registration timed out. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Registration timed out. Please try again.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'An unexpected error occurred during registration.'};
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred during registration.',
+      };
     }
   }
 
@@ -106,11 +126,13 @@ class GoogleSheetsService {
     required String email,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'verify_reset_user',
-        'userId': userId.trim(),
-        'email': email.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'verify_reset_user',
+          'userId': userId.trim(),
+          'email': email.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -120,12 +142,12 @@ class GoogleSheetsService {
     } on TimeoutException {
       return {
         'success': false,
-        'message': 'Account verification timed out. Please try again.'
+        'message': 'Account verification timed out. Please try again.',
       };
     } catch (e) {
       return {
         'success': false,
-        'message': 'An unexpected error occurred during account verification.'
+        'message': 'An unexpected error occurred during account verification.',
       };
     }
   }
@@ -138,61 +160,13 @@ class GoogleSheetsService {
     required String newPassword,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'reset_password',
-        'userId': userId.trim(),
-        'email': email.trim(),
-        'newPassword': newPassword,
-      });
-
-      final response = await http.get(uri).timeout(_timeout);
-
-      return _parseResponse(response);
-    } on SocketException {
-      return {'success': false, 'message': AppStrings.networkError};
-    } on TimeoutException {
-      return {
-        'success': false,
-        'message': 'Password reset timed out. Please try again.'
-      };
-    } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred during password reset.'
-      };
-    }
-  }
-
-
-  /// Fetches a student profile from the existing Google Apps Script StudentProfiles sheet.
-  /// Expects action=get_student_profile and userId.
-  Future<Map<String, dynamic>> getStudentProfile({
-    required String userId,
-  }) async {
-    try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'get_student_profile',
-        'userId': userId.trim(),
-      });
-
-      final response = await http.get(uri).timeout(_timeout);
-
-      return _parseResponse(response);
-    } on SocketException {
-      return {'success': false, 'message': AppStrings.networkError};
-    } on TimeoutException {
-      return {'success': false, 'message': 'Profile fetch timed out. Please try again.'};
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to retrieve profile data.'};
-    }
-  }
-
-  /// Saves or updates a student profile on the existing Google Apps Script StudentProfiles sheet.
-  /// Sends action=save_student_profile and profile parameters.
-  Future<Map<String, dynamic>> saveStudentProfile(StudentProfile profile) async {
-    try {
       final uri = Uri.parse(baseUrl).replace(
-        queryParameters: profile.toQueryParameters(),
+        queryParameters: {
+          'action': 'reset_password',
+          'userId': userId.trim(),
+          'email': email.trim(),
+          'newPassword': newPassword,
+        },
       );
 
       final response = await http.get(uri).timeout(_timeout);
@@ -201,7 +175,66 @@ class GoogleSheetsService {
     } on SocketException {
       return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {'success': false, 'message': 'Profile save timed out. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Password reset timed out. Please try again.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred during password reset.',
+      };
+    }
+  }
+
+  /// Fetches a student profile from the existing Google Apps Script StudentProfiles sheet.
+  /// Expects action=get_student_profile and userId.
+  Future<Map<String, dynamic>> getStudentProfile({
+    required String userId,
+  }) async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'get_student_profile',
+          'userId': userId.trim(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(_timeout);
+
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Profile fetch timed out. Please try again.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to retrieve profile data.'};
+    }
+  }
+
+  /// Saves or updates a student profile on the existing Google Apps Script StudentProfiles sheet.
+  /// Sends action=save_student_profile and profile parameters.
+  Future<Map<String, dynamic>> saveStudentProfile(
+    StudentProfile profile,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: profile.toQueryParameters());
+
+      final response = await http.get(uri).timeout(_timeout);
+
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Profile save timed out. Please try again.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Failed to save profile changes.'};
     }
@@ -218,15 +251,17 @@ class GoogleSheetsService {
     required String chunk,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'upload_chunk',
-        'uploadId': uploadId,
-        'userId': userId.trim(),
-        'chunkIndex': chunkIndex.toString(),
-        'totalChunks': totalChunks.toString(),
-        'fileName': fileName,
-        'chunk': chunk,
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'upload_chunk',
+          'uploadId': uploadId,
+          'userId': userId.trim(),
+          'chunkIndex': chunkIndex.toString(),
+          'totalChunks': totalChunks.toString(),
+          'fileName': fileName,
+          'chunk': chunk,
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -234,9 +269,15 @@ class GoogleSheetsService {
     } on SocketException {
       return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {'success': false, 'message': 'Chunk $chunkIndex upload timed out.'};
+      return {
+        'success': false,
+        'message': 'Chunk $chunkIndex upload timed out.',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Failed to upload chunk $chunkIndex.'};
+      return {
+        'success': false,
+        'message': 'Failed to upload chunk $chunkIndex.',
+      };
     }
   }
 
@@ -250,14 +291,16 @@ class GoogleSheetsService {
     required int totalChunks,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'finish_upload',
-        'uploadId': uploadId,
-        'userId': userId.trim(),
-        'fileName': fileName,
-        'mimeType': mimeType,
-        'totalChunks': totalChunks.toString(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'finish_upload',
+          'uploadId': uploadId,
+          'userId': userId.trim(),
+          'fileName': fileName,
+          'mimeType': mimeType,
+          'totalChunks': totalChunks.toString(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -275,9 +318,9 @@ class GoogleSheetsService {
   /// Sends action=get_jobs.
   Future<Map<String, dynamic>> getJobs() async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'get_jobs',
-      });
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_jobs'});
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -298,19 +341,19 @@ class GoogleSheetsService {
       return {
         'success': false,
         'message': AppStrings.networkError,
-        'jobs': <Job>[]
+        'jobs': <Job>[],
       };
     } on TimeoutException {
       return {
         'success': false,
         'message': 'Jobs fetch timed out. Please try again.',
-        'jobs': <Job>[]
+        'jobs': <Job>[],
       };
     } catch (e) {
       return {
         'success': false,
         'message': 'An unexpected error occurred while loading jobs.',
-        'jobs': <Job>[]
+        'jobs': <Job>[],
       };
     }
   }
@@ -319,10 +362,9 @@ class GoogleSheetsService {
   /// Sends action=get_job_details and jobId.
   Future<Map<String, dynamic>> getJobDetails(String jobId) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'get_job_details',
-        'jobId': jobId.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {'action': 'get_job_details', 'jobId': jobId.trim()},
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -340,12 +382,12 @@ class GoogleSheetsService {
     } on TimeoutException {
       return {
         'success': false,
-        'message': 'Job details fetch timed out. Please try again.'
+        'message': 'Job details fetch timed out. Please try again.',
       };
     } catch (e) {
       return {
         'success': false,
-        'message': 'An unexpected error occurred while loading job details.'
+        'message': 'An unexpected error occurred while loading job details.',
       };
     }
   }
@@ -357,11 +399,13 @@ class GoogleSheetsService {
     required String jobId,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'apply_job',
-        'userId': userId.trim(),
-        'jobId': jobId.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'apply_job',
+          'userId': userId.trim(),
+          'jobId': jobId.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -371,13 +415,13 @@ class GoogleSheetsService {
     } on TimeoutException {
       return {
         'success': false,
-        'message': 'Application submission timed out. Please try again.'
+        'message': 'Application submission timed out. Please try again.',
       };
     } catch (e) {
       return {
         'success': false,
         'message':
-            'An unexpected error occurred while submitting your application.'
+            'An unexpected error occurred while submitting your application.',
       };
     }
   }
@@ -386,10 +430,12 @@ class GoogleSheetsService {
   /// Sends action=get_my_applications and userId.
   Future<List<Application>> getMyApplications(String userId) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'get_my_applications',
-        'userId': userId.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'get_my_applications',
+          'userId': userId.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -414,10 +460,12 @@ class GoogleSheetsService {
   /// Sends action=get_notifications and userId.
   Future<Map<String, dynamic>> getNotifications(String userId) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'get_notifications',
-        'userId': userId.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'get_notifications',
+          'userId': userId.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
       final result = _parseResponse(response);
@@ -473,11 +521,13 @@ class GoogleSheetsService {
     required String userId,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'mark_notification_read',
-        'notificationId': notificationId.trim(),
-        'userId': userId.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'mark_notification_read',
+          'notificationId': notificationId.trim(),
+          'userId': userId.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
       return _parseResponse(response);
@@ -486,16 +536,16 @@ class GoogleSheetsService {
     } on TimeoutException {
       return {'success': false, 'message': 'Request timed out.'};
     } catch (e) {
-      return {'success': false, 'message': 'Failed to update notification status.'};
+      return {
+        'success': false,
+        'message': 'Failed to update notification status.',
+      };
     }
   }
 
   /// Marks all notifications as read for a given student userId.
   Future<Map<String, dynamic>> markAllNotificationsAsRead(String userId) async {
-    return markNotificationAsRead(
-      notificationId: 'all',
-      userId: userId,
-    );
+    return markNotificationAsRead(notificationId: 'all', userId: userId);
   }
 
   /// Posts a new job opening to the Google Sheets Jobs sheet.
@@ -509,25 +559,30 @@ class GoogleSheetsService {
     String jobType = 'Full-time',
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'post_job',
-        'title': title.trim(),
-        'jobTitle': title.trim(),
-        'company': company.trim(),
-        'companyName': company.trim(),
-        'location': location.trim(),
-        'skills': skills.trim(),
-        'salary': salary.trim(),
-        'description': description.trim(),
-        'jobType': jobType.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'post_job',
+          'title': title.trim(),
+          'jobTitle': title.trim(),
+          'company': company.trim(),
+          'companyName': company.trim(),
+          'location': location.trim(),
+          'skills': skills.trim(),
+          'salary': salary.trim(),
+          'description': description.trim(),
+          'jobType': jobType.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
       return _parseResponse(response);
     } on SocketException {
       return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {'success': false, 'message': 'Job posting timed out. Please try again.'};
+      return {
+        'success': false,
+        'message': 'Job posting timed out. Please try again.',
+      };
     } catch (e) {
       return {'success': false, 'message': 'Failed to post job opening.'};
     }
@@ -539,20 +594,23 @@ class GoogleSheetsService {
     String? companyName,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'get_company_applications',
-        'companyId': companyId.trim(),
-        if (companyName != null && companyName.isNotEmpty)
-          'companyName': companyName.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'get_company_applications',
+          'companyId': companyId.trim(),
+          if (companyName != null && companyName.isNotEmpty)
+            'companyName': companyName.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
       final result = _parseResponse(response);
 
       if (result['success'] == true && result['applications'] is List) {
         final List rawApps = result['applications'];
-        final List<Map<String, dynamic>> apps =
-            rawApps.map((a) => Map<String, dynamic>.from(a)).toList();
+        final List<Map<String, dynamic>> apps = rawApps
+            .map((a) => Map<String, dynamic>.from(a))
+            .toList();
         return {'success': true, 'applications': apps};
       }
       return {
@@ -587,11 +645,13 @@ class GoogleSheetsService {
     required String status,
   }) async {
     try {
-      final uri = Uri.parse(baseUrl).replace(queryParameters: {
-        'action': 'update_application_status',
-        'applicationId': applicationId.trim(),
-        'status': status.trim(),
-      });
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'update_application_status',
+          'applicationId': applicationId.trim(),
+          'status': status.trim(),
+        },
+      );
 
       final response = await http.get(uri).timeout(_timeout);
       return _parseResponse(response);
@@ -600,11 +660,343 @@ class GoogleSheetsService {
     } on TimeoutException {
       return {'success': false, 'message': 'Status update timed out.'};
     } catch (e) {
-      return {'success': false, 'message': 'Failed to update application status.'};
+      return {
+        'success': false,
+        'message': 'Failed to update application status.',
+      };
     }
   }
 
+  /// Submits recruiter feedback and rating to Google Sheets backend (Phase 13).
+  Future<Map<String, dynamic>> submitRecruiterFeedback({
+    required RecruiterFeedback feedback,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: feedback.toQueryParameters());
 
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Feedback submission timed out.'};
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to submit recruiter feedback.',
+      };
+    }
+  }
+
+  /// Fetches recruiter feedback items from Google Sheets backend (Phase 13).
+  Future<Map<String, dynamic>> getRecruiterFeedback({
+    String? companyId,
+    String? jobId,
+    String? studentId,
+    String? applicationId,
+  }) async {
+    try {
+      final queryParams = <String, String>{'action': 'get_recruiter_feedback'};
+      if (companyId != null && companyId.isNotEmpty) {
+        queryParams['companyId'] = companyId.trim();
+      }
+      if (jobId != null && jobId.isNotEmpty) {
+        queryParams['jobId'] = jobId.trim();
+      }
+      if (studentId != null && studentId.isNotEmpty) {
+        queryParams['studentId'] = studentId.trim();
+      }
+      if (applicationId != null && applicationId.isNotEmpty) {
+        queryParams['applicationId'] = applicationId.trim();
+      }
+
+      final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
+      final response = await http.get(uri).timeout(_timeout);
+      final res = _parseResponse(response);
+
+      if (res['success'] == true && res['feedbackList'] is List) {
+        final rawList = res['feedbackList'] as List;
+        final feedbackItems = rawList
+            .map(
+              (item) => RecruiterFeedback.fromJson(
+                item is Map<String, dynamic> ? item : {},
+              ),
+            )
+            .where((item) => item.applicationId.isNotEmpty)
+            .toList();
+        return {'success': true, 'feedbackList': feedbackItems};
+      } else if (res['feedback'] is List) {
+        final rawList = res['feedback'] as List;
+        final feedbackItems = rawList
+            .map(
+              (item) => RecruiterFeedback.fromJson(
+                item is Map<String, dynamic> ? item : {},
+              ),
+            )
+            .where((item) => item.applicationId.isNotEmpty)
+            .toList();
+        return {'success': true, 'feedbackList': feedbackItems};
+      }
+
+      return res;
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'feedbackList': <RecruiterFeedback>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Fetching feedback timed out.',
+        'feedbackList': <RecruiterFeedback>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to fetch recruiter feedback.',
+        'feedbackList': <RecruiterFeedback>[],
+      };
+    }
+  }
+
+  /// Fetches real campus & placement statistics for the Admin Dashboard (Phase 14).
+  Future<Map<String, dynamic>> getAdminStatistics() async {
+    try {
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_admin_statistics'});
+
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Fetching statistics timed out.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to load admin statistics.'};
+    }
+  }
+
+  /// Fetches registered company user accounts for the Admin Dashboard (Phase 14B).
+  Future<Map<String, dynamic>> getAdminCompanies() async {
+    try {
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_admin_companies'});
+
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      if (result['success'] == true && result['companies'] is List) {
+        final rawList = result['companies'] as List;
+        final companies = rawList
+            .map((c) => Map<String, dynamic>.from(c is Map ? c : {}))
+            .toList();
+        return {'success': true, 'companies': companies};
+      }
+      return {
+        'success': result['success'] ?? false,
+        'message': result['message'] ?? 'Failed to load company accounts.',
+        'companies': <Map<String, dynamic>>[],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'companies': <Map<String, dynamic>>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Fetching company list timed out.',
+        'companies': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to load company accounts.',
+        'companies': <Map<String, dynamic>>[],
+      };
+    }
+  }
+
+  /// Updates a company user account status (Approve / Revoke) in Google Sheets (Phase 14B).
+  Future<Map<String, dynamic>> updateCompanyStatus({
+    required String userId,
+    required String status,
+  }) async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'update_company_status',
+          'userId': userId.trim(),
+          'status': status.trim(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Updating status timed out.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to update company status.'};
+    }
+  }
+
+  /// Fetches most demanded skills statistics for Admin Analytics (Phase 15).
+  Future<Map<String, dynamic>> getMostDemandedSkills() async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {'action': 'get_most_demanded_skills'},
+      );
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      if (result['success'] == true && result['skills'] is List) {
+        final rawList = result['skills'] as List;
+        final skills = rawList
+            .map((s) => Map<String, dynamic>.from(s is Map ? s : {}))
+            .toList();
+        return {'success': true, 'skills': skills};
+      }
+      return {
+        'success': result['success'] ?? false,
+        'message': result['message'] ?? 'Failed to load demanded skills.',
+        'skills': <Map<String, dynamic>>[],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'skills': <Map<String, dynamic>>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timed out.',
+        'skills': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to load demanded skills.',
+        'skills': <Map<String, dynamic>>[],
+      };
+    }
+  }
+
+  /// Fetches student readiness distribution statistics for Admin Analytics (Phase 15).
+  Future<Map<String, dynamic>> getReadinessDistribution() async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {'action': 'get_readiness_distribution'},
+      );
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      return result;
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timed out.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to load readiness distribution.',
+      };
+    }
+  }
+
+  /// Fetches top recommended jobs statistics for Admin Analytics (Phase 15).
+  Future<Map<String, dynamic>> getTopRecommendedJobs() async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {'action': 'get_top_recommended_jobs'},
+      );
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      final listData = result['recommendedJobs'] ?? result['jobs'];
+      if (result['success'] == true && listData is List) {
+        final jobs = listData
+            .map((j) => Map<String, dynamic>.from(j is Map ? j : {}))
+            .toList();
+        return {'success': true, 'recommendedJobs': jobs, 'jobs': jobs};
+      }
+      return {
+        'success': result['success'] ?? false,
+        'message': result['message'] ?? 'Failed to load recommended jobs.',
+        'recommendedJobs': <Map<String, dynamic>>[],
+        'jobs': <Map<String, dynamic>>[],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'recommendedJobs': <Map<String, dynamic>>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timed out.',
+        'recommendedJobs': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to load recommended jobs.',
+        'recommendedJobs': <Map<String, dynamic>>[],
+      };
+    }
+  }
+
+  /// Fetches placement trends over time for Admin Analytics (Phase 15).
+  Future<Map<String, dynamic>> getPlacementTrends() async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {'action': 'get_placement_trends'},
+      );
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      if (result['success'] == true && result['trends'] is List) {
+        final rawList = result['trends'] as List;
+        final trends = rawList
+            .map((t) => Map<String, dynamic>.from(t is Map ? t : {}))
+            .toList();
+        return {'success': true, 'trends': trends};
+      }
+      return {
+        'success': result['success'] ?? false,
+        'message': result['message'] ?? 'Failed to load placement trends.',
+        'trends': <Map<String, dynamic>>[],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'trends': <Map<String, dynamic>>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Request timed out.',
+        'trends': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to load placement trends.',
+        'trends': <Map<String, dynamic>>[],
+      };
+    }
+  }
 
   /// Safely parses HTTP response and handles JSON format conversion.
   Map<String, dynamic> _parseResponse(http.Response response) {
@@ -614,14 +1006,21 @@ class GoogleSheetsService {
         if (decoded is Map<String, dynamic>) {
           return decoded;
         }
-        return {'success': false, 'message': 'Invalid server response structure.'};
+        return {
+          'success': false,
+          'message': 'Invalid server response structure.',
+        };
       } on FormatException {
-        return {'success': false, 'message': 'Failed to parse server response.'};
+        return {
+          'success': false,
+          'message': 'Failed to parse server response.',
+        };
       }
     } else {
       return {
         'success': false,
-        'message': 'Server error (${response.statusCode}). Please try again later.'
+        'message':
+            'Server error (${response.statusCode}). Please try again later.',
       };
     }
   }

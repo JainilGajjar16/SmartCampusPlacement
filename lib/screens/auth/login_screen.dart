@@ -67,7 +67,10 @@ class _LoginScreenState extends State<LoginScreen> {
             response['userId']?.toString().trim() ?? inputUserId;
         final String rawRole = response['role']?.toString() ?? 'Student';
         final String role = rawRole.trim().toLowerCase();
-        final String? name = response['name']?.toString();
+        final String? name = response['name']?.toString() ??
+            (response['profile'] is Map ? response['profile']['name']?.toString() : null) ??
+            (response['data'] is Map ? response['data']['name']?.toString() : null) ??
+            (response['user'] is Map ? response['user']['name']?.toString() : null);
         final String status =
             (response['status'] ?? response['userStatus'] ?? 'Active')
                 .toString()

@@ -877,23 +877,24 @@ class _ApplicationCard extends StatelessWidget {
                 const SizedBox(height: 10),
 
                 // Footer (ID, Date & Tap for Details Prompt)
-                SizedBox(
-                  width: double.infinity,
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 12,
-                    runSpacing: 6,
-                    children: [
-                      Text(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
                         'ID: ${application.applicationId}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
                           fontFamily: 'monospace',
                           color: AppColors.textSecondary.withValues(alpha: 0.8),
                         ),
                       ),
-                      Row(
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (application.appliedDate.isNotEmpty) ...[
@@ -903,14 +904,18 @@ class _ApplicationCard extends StatelessWidget {
                               color: AppColors.textSecondary,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              application.appliedDate,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
+                            Flexible(
+                              child: Text(
+                                application.appliedDate,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 6),
                           ],
                           const Icon(
                             Icons.arrow_forward_ios_rounded,
@@ -919,8 +924,8 @@ class _ApplicationCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -952,12 +957,18 @@ class _DetailMetaRow extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ],

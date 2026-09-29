@@ -4,7 +4,7 @@
  * INSTRUCTIONS FOR GOOGLE APPS SCRIPT:
  * 1. Open your existing Google Spreadsheet.
  * 2. Go to Extensions > Apps Script to open Code.gs.
- * 3. In doGet(e), add action handling for Phase 8 & Company Module to your existing action check:
+ * 3. In doGet(e), add action handling for Phase 8, Company Module & Phase 13 Recruiter Feedback:
  * 
  *    if (action === 'get_notifications') {
  *      return getNotifications(e);
@@ -16,6 +16,20 @@
  *      return handleGetCompanyApplications(ss, e.parameter);
  *    } else if (action === 'update_application_status') {
  *      return handleUpdateApplicationStatus(ss, e.parameter);
+ *    } else if (action === 'submit_recruiter_feedback') {
+ *      return handleSubmitRecruiterFeedback(ss, e.parameter);
+ *    } else if (action === 'get_recruiter_feedback') {
+ *      return handleGetRecruiterFeedback(ss, e.parameter);
+ *    } else if (action === 'get_admin_statistics') {
+ *      return handleGetAdminStatistics(ss, e.parameter);
+ *    } else if (action === 'get_most_demanded_skills') {
+ *      return handleGetMostDemandedSkills(ss, e.parameter);
+ *    } else if (action === 'get_readiness_distribution') {
+ *      return handleGetReadinessDistribution(ss, e.parameter);
+ *    } else if (action === 'get_top_recommended_jobs') {
+ *      return handleGetTopRecommendedJobs(ss, e.parameter);
+ *    } else if (action === 'get_placement_trends') {
+ *      return handleGetPlacementTrends(ss, e.parameter);
  *    }
  * 
  * 4. Inside your existing applyForJob(e) function, after appending the new application row,
@@ -790,5 +804,876 @@ function handleUpdateApplicationStatus(ss, params) {
     return jsonResponse({ success: false, message: "Failed to update status: " + err.toString() });
   }
 }
+
+// Phase 13 Recruiter Feedback Functions
+function handleSubmitRecruiterFeedback(ss, params) {
+  try {
+    var feedbackId = (params.feedbackId || params.id || ("FB" + new Date().getTime())).toString().trim();
+    var applicationId = (params.applicationId || params.application_id || "").toString().trim();
+    var jobId = (params.jobId || params.job_id || "").toString().trim();
+    var studentId = (params.studentId || params.userId || params.user_id || "").toString().trim();
+    var companyId = (params.companyId || params.company_id || "").toString().trim();
+    var rating = parseFloat(params.rating || "0");
+    var feedback = (params.feedback || params.comment || "").toString().trim();
+    var createdAt = (params.createdAt || params.created_at || new Date().toISOString().split('T')[0]).toString().trim();
+
+    if (!applicationId && !jobId) {
+      return jsonResponse({ success: false, message: "Application ID or Job ID is required" });
+    }
+
+    var sheetName = "RecruiterFeedback";
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      sheet.appendRow([
+        "Feedback ID",
+        "Application ID",
+        "Job ID",
+        "Student ID",
+        "Company ID",
+        "Rating",
+        "Feedback",
+        "Created At"
+      ]);
+    }
+
+    var data = sheet.getDataRange().getValues();
+    var updated = false;
+
+    if (data.length > 1 && applicationId) {
+      var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+      var appIdCol = headers.indexOf("application id");
+      if (appIdCol === -1) appIdCol = headers.indexOf("applicationid");
+
+      if (appIdCol !== -1) {
+        for (var i = 1; i < data.length; i++) {
+          var rAppId = data[i][appIdCol] ? data[i][appIdCol].toString().trim().toLowerCase() : "";
+          if (rAppId === applicationId.toLowerCase()) {
+            sheet.getRange(i + 1, 1, 1, 8).setValues([[
+              feedbackId,
+              applicationId,
+              jobId,
+              studentId,
+              companyId,
+              rating,
+              feedback,
+              createdAt
+            ]]);
+            updated = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!updated) {
+      sheet.appendRow([
+        feedbackId,
+        applicationId,
+        jobId,
+        studentId,
+        companyId,
+        rating,
+        feedback,
+        createdAt
+      ]);
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Recruiter feedback saved successfully",
+      feedbackId: feedbackId
+    });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error saving feedback: " + err.toString() });
+  }
+}
+
+function handleGetRecruiterFeedback(ss, params) {
+  try {
+    var sheetName = "RecruiterFeedback";
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      return jsonResponse({ success: true, feedbackList: [] });
+    }
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return jsonResponse({ success: true, feedbackList: [] });
+    }
+
+    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var reqCompanyId = (params.companyId || params.company || "").toString().trim().toLowerCase();
+    var reqJobId = (params.jobId || params.job || "").toString().trim().toLowerCase();
+    var reqStudentId = (params.studentId || params.userId || "").toString().trim().toLowerCase();
+    var reqAppId = (params.applicationId || params.id || "").toString().trim().toLowerCase();
+
+    var feedbackList = [];
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+
+      var getVal = function (names) {
+        for (var k = 0; k < names.length; k++) {
+          var idx = headers.indexOf(names[k].toLowerCase());
+          if (idx !== -1 && row[idx] !== undefined && row[idx] !== null) {
+            return row[idx].toString().trim();
+          }
+        }
+        return "";
+      };
+
+      var fId = getVal(["feedback id", "feedbackid", "id"]);
+      var appId = getVal(["application id", "applicationid", "appid"]);
+      var jId = getVal(["job id", "jobid"]);
+      var sId = getVal(["student id", "studentid", "user id", "userid"]);
+      var cId = getVal(["company id", "companyid"]);
+      var rating = parseFloat(getVal(["rating"]) || "0");
+      var comment = getVal(["feedback", "comment"]);
+      var createdAt = getVal(["created at", "createdat", "date"]);
+
+      if (reqCompanyId && cId.toLowerCase() !== reqCompanyId && cId.toLowerCase().indexOf(reqCompanyId) === -1) {
+        continue;
+      }
+      if (reqJobId && jId.toLowerCase() !== reqJobId) {
+        continue;
+      }
+      if (reqStudentId && sId.toLowerCase() !== reqStudentId) {
+        continue;
+      }
+      if (reqAppId && appId.toLowerCase() !== reqAppId) {
+        continue;
+      }
+
+      feedbackList.push({
+        feedbackId: fId || ("FB" + i),
+        applicationId: appId,
+        jobId: jId,
+        studentId: sId,
+        companyId: cId,
+        rating: rating,
+        feedback: comment,
+        createdAt: createdAt
+      });
+    }
+
+    return jsonResponse({ success: true, feedbackList: feedbackList });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error fetching feedback: " + err.toString() });
+  }
+}
+
+// Phase 14 Admin Statistics Function
+function handleGetAdminStatistics(ss, params) {
+  try {
+    var totalStudents = 0;
+    var totalJobs = 0;
+    var totalApplications = 0;
+    var shortlisted = 0;
+    var selected = 0;
+
+    // 1. Users Sheet - Count Student Users Only (Do not count Admin or Company)
+    var usersSheet = ss.getSheetByName("Users");
+    if (usersSheet) {
+      var uData = usersSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var roleCol = uHeaders.indexOf("role");
+        if (roleCol === -1) roleCol = uHeaders.indexOf("user role");
+        if (roleCol === -1) roleCol = uHeaders.indexOf("userrole");
+        if (roleCol === -1) roleCol = uHeaders.indexOf("role name");
+        if (roleCol === -1) roleCol = 4; // Fallback to column index 4 (0-based) as per Users sheet schema
+
+        for (var i = 1; i < uData.length; i++) {
+          var uRow = uData[i];
+          if (!uRow[0] && !uRow[1]) continue; // Skip empty rows
+
+          var roleVal = (roleCol !== -1 && uRow[roleCol] !== undefined && uRow[roleCol] !== null)
+            ? String(uRow[roleCol]).trim().toLowerCase()
+            : "";
+
+          if (roleVal === "student") {
+            totalStudents++;
+          }
+        }
+      }
+    }
+
+    // 2. Jobs Sheet - Count Total Active Jobs
+    var jobsSheet = ss.getSheetByName("Jobs");
+    if (jobsSheet) {
+      var jData = jobsSheet.getDataRange().getValues();
+      if (jData.length > 1) {
+        var jHeaders = jData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var statusCol = jHeaders.indexOf("status");
+        if (statusCol === -1) statusCol = jHeaders.indexOf("job status");
+        if (statusCol === -1) statusCol = jHeaders.indexOf("jobstatus");
+
+        for (var j = 1; j < jData.length; j++) {
+          var jRow = jData[j];
+          if (!jRow[0] && !jRow[1]) continue; // Skip empty rows
+
+          var jStatus = (statusCol !== -1 && jRow[statusCol] !== undefined && jRow[statusCol] !== null)
+            ? String(jRow[statusCol]).trim().toLowerCase()
+            : "active";
+
+          if (!jStatus || jStatus === "active" || jStatus === "open") {
+            totalJobs++;
+          }
+        }
+      }
+    }
+
+    // 3. Applications Sheet - Count Applications, Shortlisted & Selected
+    var appsSheet = ss.getSheetByName("Applications");
+    if (appsSheet) {
+      var aData = appsSheet.getDataRange().getValues();
+      if (aData.length > 1) {
+        var aHeaders = aData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var aStatusCol = aHeaders.indexOf("status");
+        if (aStatusCol === -1) aStatusCol = aHeaders.indexOf("application status");
+        if (aStatusCol === -1) aStatusCol = aHeaders.indexOf("applicationstatus");
+        if (aStatusCol === -1) aStatusCol = 4; // Fallback to column index 4
+
+        for (var k = 1; k < aData.length; k++) {
+          var aRow = aData[k];
+          if (!aRow[0] && !aRow[1] && !aRow[2]) continue; // Skip empty rows
+
+          totalApplications++;
+
+          var aStatus = (aStatusCol !== -1 && aRow[aStatusCol] !== undefined && aRow[aStatusCol] !== null)
+            ? String(aRow[aStatusCol]).trim().toLowerCase()
+            : "";
+
+          if (aStatus.indexOf("shortlist") !== -1) {
+            shortlisted++;
+          }
+          if (aStatus.indexOf("select") !== -1 || aStatus.indexOf("hired") !== -1 || aStatus.indexOf("accepted") !== -1) {
+            selected++;
+          }
+        }
+      }
+    }
+
+    var placementPercentage = totalApplications > 0
+      ? parseFloat(((selected / totalApplications) * 100).toFixed(1))
+      : 0.0;
+
+    return jsonResponse({
+      success: true,
+      totalStudents: totalStudents,
+      totalJobs: totalJobs,
+      totalApplications: totalApplications,
+      shortlisted: shortlisted,
+      selected: selected,
+      placementPercentage: placementPercentage
+    });
+  } catch (err) {
+    return jsonResponse({
+      success: false,
+      message: "Error generating admin statistics: " + err.toString()
+    });
+  }
+}
+
+// Phase 14B - Get Admin Companies
+function handleGetAdminCompanies(ss, params) {
+  try {
+    var usersSheet = ss.getSheetByName("Users");
+    if (!usersSheet) {
+      return jsonResponse({ success: true, companies: [] });
+    }
+
+    var uData = usersSheet.getDataRange().getValues();
+    if (uData.length <= 1) {
+      return jsonResponse({ success: true, companies: [] });
+    }
+
+    var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var userIdCol = uHeaders.indexOf("user id");
+    if (userIdCol === -1) userIdCol = uHeaders.indexOf("userid");
+    if (userIdCol === -1) userIdCol = 0;
+
+    var nameCol = uHeaders.indexOf("name");
+    if (nameCol === -1) nameCol = uHeaders.indexOf("fullname");
+    if (nameCol === -1) nameCol = uHeaders.indexOf("company name");
+    if (nameCol === -1) nameCol = 1;
+
+    var emailCol = uHeaders.indexOf("email");
+    if (emailCol === -1) emailCol = uHeaders.indexOf("email address");
+    if (emailCol === -1) emailCol = 2;
+
+    var roleCol = uHeaders.indexOf("role");
+    if (roleCol === -1) roleCol = uHeaders.indexOf("user role");
+    if (roleCol === -1) roleCol = uHeaders.indexOf("userrole");
+    if (roleCol === -1) roleCol = 4;
+
+    var statusCol = uHeaders.indexOf("status");
+    if (statusCol === -1) statusCol = uHeaders.indexOf("user status");
+    if (statusCol === -1) statusCol = 5;
+
+    var companies = [];
+
+    for (var i = 1; i < uData.length; i++) {
+      var row = uData[i];
+      if (!row[0] && !row[1]) continue;
+
+      var roleVal = (roleCol !== -1 && row[roleCol] !== undefined && row[roleCol] !== null)
+        ? String(row[roleCol]).trim().toLowerCase()
+        : "";
+
+      if (roleVal === "company" || roleVal === "hr" || roleVal === "recruiter") {
+        var uId = (userIdCol !== -1 && row[userIdCol] !== undefined && row[userIdCol] !== null)
+          ? String(row[userIdCol]).trim()
+          : "";
+        var uName = (nameCol !== -1 && row[nameCol] !== undefined && row[nameCol] !== null)
+          ? String(row[nameCol]).trim()
+          : "";
+        var uEmail = (emailCol !== -1 && row[emailCol] !== undefined && row[emailCol] !== null)
+          ? String(row[emailCol]).trim()
+          : "";
+        var uStatus = (statusCol !== -1 && row[statusCol] !== undefined && row[statusCol] !== null)
+          ? String(row[statusCol]).trim()
+          : "Active";
+
+        companies.push({
+          userId: uId || ("COM" + i),
+          name: uName || uId,
+          email: uEmail,
+          status: uStatus || "Active",
+          role: "Company"
+        });
+      }
+    }
+
+    return jsonResponse({ success: true, companies: companies });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error loading company accounts: " + err.toString() });
+  }
+}
+
+// Phase 14B - Update Company Status
+function handleUpdateCompanyStatus(ss, params) {
+  try {
+    var userIdReq = (params.userId || params.userid || params.companyId || "").toString().trim().toLowerCase();
+    var newStatus = (params.status || "").toString().trim();
+
+    if (!userIdReq || !newStatus) {
+      return jsonResponse({ success: false, message: "User ID and Status are required" });
+    }
+
+    var usersSheet = ss.getSheetByName("Users");
+    if (!usersSheet) {
+      return jsonResponse({ success: false, message: "Users sheet not found" });
+    }
+
+    var data = usersSheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return jsonResponse({ success: false, message: "No user accounts found" });
+    }
+
+    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var userIdCol = headers.indexOf("user id");
+    if (userIdCol === -1) userIdCol = headers.indexOf("userid");
+    if (userIdCol === -1) userIdCol = 0;
+
+    var statusCol = headers.indexOf("status");
+    if (statusCol === -1) statusCol = headers.indexOf("user status");
+    if (statusCol === -1) statusCol = 5;
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rUserId = row[userIdCol] ? String(row[userIdCol]).trim().toLowerCase() : "";
+
+      if (rUserId === userIdReq) {
+        usersSheet.getRange(i + 1, statusCol + 1).setValue(newStatus);
+        return jsonResponse({
+          success: true,
+          message: "Company status updated successfully",
+          userId: row[userIdCol],
+          status: newStatus
+        });
+      }
+    }
+
+    return jsonResponse({ success: false, message: "Company account not found" });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Failed to update company status: " + err.toString() });
+  }
+}
+
+// Phase 15 Functions: Analytics & Reports
+
+function handleGetMostDemandedSkills(ss, params) {
+  try {
+    var sheet = ss.getSheetByName("Jobs");
+    if (!sheet) {
+      return jsonResponse({ success: true, skills: [] });
+    }
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return jsonResponse({ success: true, skills: [] });
+    }
+
+    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+    var skillsCol = headers.indexOf("skills");
+    if (skillsCol === -1) skillsCol = headers.indexOf("requiredskills");
+    if (skillsCol === -1) skillsCol = headers.indexOf("skillsrequired");
+    if (skillsCol === -1) skillsCol = headers.indexOf("required skills");
+    if (skillsCol === -1) skillsCol = 5;
+
+    var skillCounts = {};
+    var skillDisplayMap = {};
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (!row[0] && !row[1]) continue;
+
+      var status = "";
+      var statusCol = headers.indexOf("status");
+      if (statusCol === -1) statusCol = headers.indexOf("jobstatus");
+      if (statusCol !== -1 && row[statusCol] !== undefined && row[statusCol] !== null) {
+        status = row[statusCol].toString().trim().toLowerCase();
+      }
+      if (status && status !== "active" && status !== "open") {
+        continue;
+      }
+
+      var rawSkills = (row[skillsCol] !== undefined && row[skillsCol] !== null)
+        ? row[skillsCol].toString().trim()
+        : "";
+
+      if (!rawSkills) continue;
+
+      var splitTokens = rawSkills.split(/[,/;\n|]/);
+      for (var k = 0; k < splitTokens.length; k++) {
+        var token = splitTokens[k].trim();
+        if (token.length > 0) {
+          var canonical = token.toLowerCase();
+          if (!skillDisplayMap[canonical]) {
+            skillDisplayMap[canonical] = token;
+          }
+          skillCounts[canonical] = (skillCounts[canonical] || 0) + 1;
+        }
+      }
+    }
+
+    var resultList = [];
+    for (var key in skillCounts) {
+      resultList.push({
+        skill: skillDisplayMap[key] || key,
+        count: skillCounts[key]
+      });
+    }
+
+    resultList.sort(function (a, b) {
+      return b.count - a.count;
+    });
+
+    return jsonResponse({ success: true, skills: resultList });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error fetching demanded skills: " + err.toString() });
+  }
+}
+
+function handleGetReadinessDistribution(ss, params) {
+  try {
+    var jobsSheet = ss.getSheetByName("Jobs");
+    var activeJobs = [];
+    if (jobsSheet) {
+      var jData = jobsSheet.getDataRange().getValues();
+      if (jData.length > 1) {
+        var jHeaders = jData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var jSkillsCol = jHeaders.indexOf("skills");
+        if (jSkillsCol === -1) jSkillsCol = jHeaders.indexOf("requiredskills");
+        if (jSkillsCol === -1) jSkillsCol = 5;
+
+        for (var j = 1; j < jData.length; j++) {
+          var jRow = jData[j];
+          var jStatusCol = jHeaders.indexOf("status");
+          var jStatus = (jStatusCol !== -1 && jRow[jStatusCol] !== undefined)
+            ? jRow[jStatusCol].toString().trim().toLowerCase()
+            : "active";
+          if (!jStatus || jStatus === "active" || jStatus === "open") {
+            var rawSkills = jRow[jSkillsCol] ? jRow[jSkillsCol].toString().trim() : "";
+            activeJobs.push(rawSkills);
+          }
+        }
+      }
+    }
+
+    var studentMap = {};
+    var profSheet = ss.getSheetByName("StudentProfiles");
+    if (profSheet) {
+      var pData = profSheet.getDataRange().getValues();
+      if (pData.length > 1) {
+        var pHeaders = pData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var getPVal = function (pRow, names) {
+          for (var k = 0; k < names.length; k++) {
+            var idx = pHeaders.indexOf(names[k].toLowerCase());
+            if (idx !== -1 && pRow[idx] !== undefined && pRow[idx] !== null) {
+              return pRow[idx].toString().trim();
+            }
+          }
+          return "";
+        };
+
+        for (var p = 1; p < pData.length; p++) {
+          var pRow = pData[p];
+          var uId = getPVal(pRow, ["user id", "userid", "student id"]);
+          if (uId) {
+            studentMap[uId.toLowerCase()] = {
+              userId: uId,
+              name: getPVal(pRow, ["name", "fullname", "student name"]),
+              email: getPVal(pRow, ["email"]),
+              mobile: getPVal(pRow, ["mobile", "phone"]),
+              education: getPVal(pRow, ["education", "branch", "degree"]),
+              github: getPVal(pRow, ["github"]),
+              linkedin: getPVal(pRow, ["linkedin"]),
+              skills: getPVal(pRow, ["skills"]),
+              projects: getPVal(pRow, ["projects"]),
+              certifications: getPVal(pRow, ["certifications"])
+            };
+          }
+        }
+      }
+    }
+
+    var usersSheet = ss.getSheetByName("Users");
+    if (usersSheet) {
+      var uData = usersSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var uRoleCol = uHeaders.indexOf("role");
+        if (uRoleCol === -1) uRoleCol = 4;
+        var uIdCol = uHeaders.indexOf("user id");
+        if (uIdCol === -1) uIdCol = 0;
+        var uNameCol = uHeaders.indexOf("name");
+        if (uNameCol === -1) uNameCol = 1;
+
+        for (var u = 1; u < uData.length; u++) {
+          var uRow = uData[u];
+          var roleVal = (uRoleCol !== -1 && uRow[uRoleCol]) ? uRow[uRoleCol].toString().trim().toLowerCase() : "";
+          if (roleVal === "student") {
+            var userIdVal = uRow[uIdCol] ? uRow[uIdCol].toString().trim() : "";
+            if (userIdVal && !studentMap[userIdVal.toLowerCase()]) {
+              studentMap[userIdVal.toLowerCase()] = {
+                userId: userIdVal,
+                name: uRow[uNameCol] ? uRow[uNameCol].toString().trim() : "",
+                email: "",
+                mobile: "",
+                education: "",
+                github: "",
+                linkedin: "",
+                skills: "",
+                projects: "",
+                certifications: ""
+              };
+            }
+          }
+        }
+      }
+    }
+
+    var counts = {
+      "Ready": 0,
+      "Almost Ready": 0,
+      "Needs Improvement": 0
+    };
+
+    for (var key in studentMap) {
+      var s = studentMap[key];
+      var compScore = 0.0;
+      if (s.name) compScore += 6.67;
+      if (s.email) compScore += 6.67;
+      if (s.mobile) compScore += 6.66;
+      if (s.education) compScore += 15.0;
+      if (s.github) compScore += 7.5;
+      if (s.linkedin) compScore += 7.5;
+
+      var sSkillList = s.skills ? s.skills.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; }) : [];
+      if (sSkillList.length >= 5) compScore += 25.0;
+      else if (sSkillList.length >= 3) compScore += 18.0;
+      else if (sSkillList.length >= 1) compScore += 10.0;
+
+      if (s.projects) compScore += 15.0;
+      if (s.certifications) compScore += 10.0;
+      if (compScore > 100.0) compScore = 100.0;
+
+      var mktScore = 100.0;
+      if (activeJobs.length > 0) {
+        var totalMatchSum = 0.0;
+        for (var jIdx = 0; jIdx < activeJobs.length; jIdx++) {
+          var jobSkillStr = activeJobs[jIdx];
+          var reqSkills = jobSkillStr ? jobSkillStr.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; }) : [];
+          if (reqSkills.length === 0) {
+            totalMatchSum += 100.0;
+          } else {
+            var matched = 0;
+            for (var r = 0; r < reqSkills.length; r++) {
+              if (sSkillList.indexOf(reqSkills[r]) !== -1) {
+                matched++;
+              }
+            }
+            totalMatchSum += (matched / reqSkills.length) * 100.0;
+          }
+        }
+        mktScore = totalMatchSum / activeJobs.length;
+      }
+
+      var overall = (compScore * 0.50) + (mktScore * 0.50);
+
+      if (overall >= 80.0) {
+        counts["Ready"]++;
+      } else if (overall >= 50.0) {
+        counts["Almost Ready"]++;
+      } else {
+        counts["Needs Improvement"]++;
+      }
+    }
+
+    var categories = [
+      { category: "Ready", count: counts["Ready"] },
+      { category: "Almost Ready", count: counts["Almost Ready"] },
+      { category: "Needs Improvement", count: counts["Needs Improvement"] }
+    ];
+
+    return jsonResponse({ success: true, categories: categories });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error calculating readiness distribution: " + err.toString() });
+  }
+}
+
+function handleGetTopRecommendedJobs(ss, params) {
+  try {
+    var jobsSheet = ss.getSheetByName("Jobs");
+    if (!jobsSheet) {
+      return jsonResponse({ success: true, recommendedJobs: [], jobs: [] });
+    }
+
+    var jData = jobsSheet.getDataRange().getValues();
+    if (jData.length <= 1) {
+      return jsonResponse({ success: true, recommendedJobs: [], jobs: [] });
+    }
+
+    var jHeaders = jData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+    var getJVal = function (row, names) {
+      for (var k = 0; k < names.length; k++) {
+        var idx = jHeaders.indexOf(names[k].toLowerCase());
+        if (idx !== -1 && row[idx] !== undefined && row[idx] !== null) {
+          return row[idx].toString().trim();
+        }
+      }
+      return "";
+    };
+
+    var jobsList = [];
+    for (var j = 1; j < jData.length; j++) {
+      var jRow = jData[j];
+      var jId = getJVal(jRow, ["jobid", "id", "job id"]);
+      var status = getJVal(jRow, ["status", "jobstatus"]);
+      if (status && status.toLowerCase() !== "active" && status.toLowerCase() !== "open") {
+        continue;
+      }
+      if (jId || getJVal(jRow, ["title", "jobtitle", "job title"])) {
+        jobsList.push({
+          jobId: jId || ("JOB" + j),
+          title: getJVal(jRow, ["title", "jobtitle", "job title"]),
+          company: getJVal(jRow, ["company", "companyname", "company name"]),
+          skills: getJVal(jRow, ["skills", "requiredskills", "skillsrequired"])
+        });
+      }
+    }
+
+    var studentSkillsList = [];
+    var profSheet = ss.getSheetByName("StudentProfiles");
+    if (profSheet) {
+      var pData = profSheet.getDataRange().getValues();
+      if (pData.length > 1) {
+        var pHeaders = pData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var sCol = pHeaders.indexOf("skills");
+        for (var p = 1; p < pData.length; p++) {
+          var pSkills = (sCol !== -1 && pData[p][sCol]) ? pData[p][sCol].toString().trim() : "";
+          var tokens = pSkills.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; });
+          studentSkillsList.push(tokens);
+        }
+      }
+    }
+
+    var recCounts = {};
+    var avgMatchMap = {};
+    var missingSkillsMap = {};
+
+    for (var i = 0; i < jobsList.length; i++) {
+      var job = jobsList[i];
+      var reqSkills = job.skills.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; });
+
+      var count = 0;
+      var totalMatchPct = 0;
+
+      for (var s = 0; s < studentSkillsList.length; s++) {
+        var stSkills = studentSkillsList[s];
+        if (reqSkills.length === 0) {
+          count++;
+          totalMatchPct += 100;
+        } else {
+          var matched = 0;
+          for (var r = 0; r < reqSkills.length; r++) {
+            if (stSkills.indexOf(reqSkills[r]) !== -1) {
+              matched++;
+            }
+          }
+          var matchPct = (matched / reqSkills.length) * 100.0;
+          totalMatchPct += matchPct;
+          if (matchPct >= 50.0) {
+            count++;
+          }
+        }
+      }
+
+      recCounts[job.jobId] = count;
+      avgMatchMap[job.jobId] = studentSkillsList.length > 0 ? Math.round(totalMatchPct / studentSkillsList.length) : 0;
+      missingSkillsMap[job.jobId] = reqSkills.join(", ");
+    }
+
+    var resultList = [];
+    for (var k = 0; k < jobsList.length; k++) {
+      var jb = jobsList[k];
+      resultList.push({
+        jobId: jb.jobId,
+        jobTitle: jb.title,
+        title: jb.title,
+        company: jb.company,
+        recommendationCount: recCounts[jb.jobId] || 0,
+        matchPercentage: avgMatchMap[jb.jobId] || 0,
+        missingSkills: missingSkillsMap[jb.jobId] || ""
+      });
+    }
+
+    resultList.sort(function (a, b) {
+      return b.recommendationCount - a.recommendationCount;
+    });
+
+    return jsonResponse({
+      success: true,
+      recommendedJobs: resultList,
+      jobs: resultList
+    });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error fetching recommended jobs: " + err.toString() });
+  }
+}
+
+function handleGetPlacementTrends(ss, params) {
+  try {
+    var appSheet = ss.getSheetByName("Applications");
+    if (!appSheet) {
+      return jsonResponse({ success: true, trends: [] });
+    }
+
+    var aData = appSheet.getDataRange().getValues();
+    if (aData.length <= 1) {
+      return jsonResponse({ success: true, trends: [] });
+    }
+
+    var aHeaders = aData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+    var dateCol = aHeaders.indexOf("applied date");
+    if (dateCol === -1) dateCol = aHeaders.indexOf("applieddate");
+    if (dateCol === -1) dateCol = aHeaders.indexOf("date");
+    if (dateCol === -1) dateCol = 3;
+
+    var statusCol = aHeaders.indexOf("status");
+    if (statusCol === -1) statusCol = aHeaders.indexOf("applicationstatus");
+    if (statusCol === -1) statusCol = 4;
+
+    var monthMap = {};
+
+    var monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    for (var i = 1; i < aData.length; i++) {
+      var row = aData[i];
+      if (!row[0] && !row[1] && !row[2]) continue;
+
+      var rawDate = row[dateCol];
+      var dateObj = null;
+
+      if (rawDate instanceof Date && !isNaN(rawDate.getTime())) {
+        dateObj = rawDate;
+      } else if (rawDate) {
+        var strDate = rawDate.toString().trim();
+        var parsed = Date.parse(strDate);
+        if (!isNaN(parsed)) {
+          dateObj = new Date(parsed);
+        } else {
+          var parts = strDate.split(" ")[0].split("-");
+          if (parts.length >= 3) {
+            var y = parseInt(parts[0], 10);
+            var m = parseInt(parts[1], 10) - 1;
+            var d = parseInt(parts[2], 10);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+              dateObj = new Date(y, m, d);
+            }
+          }
+        }
+      }
+
+      if (!dateObj) continue;
+
+      var year = dateObj.getFullYear();
+      var monthIdx = dateObj.getMonth();
+      var sortKey = year + "-" + (monthIdx < 9 ? "0" + (monthIdx + 1) : (monthIdx + 1));
+      var displayMonth = monthNames[monthIdx] + " " + year;
+
+      if (!monthMap[sortKey]) {
+        monthMap[sortKey] = {
+          sortKey: sortKey,
+          month: displayMonth,
+          applications: 0,
+          shortlisted: 0,
+          placements: 0,
+          selected: 0
+        };
+      }
+
+      monthMap[sortKey].applications++;
+
+      var status = (statusCol !== -1 && row[statusCol]) ? row[statusCol].toString().trim().toLowerCase() : "";
+      if (status.indexOf("shortlist") !== -1) {
+        monthMap[sortKey].shortlisted++;
+      }
+      if (status.indexOf("select") !== -1 || status.indexOf("hired") !== -1 || status.indexOf("accept") !== -1 || status.indexOf("place") !== -1) {
+        monthMap[sortKey].placements++;
+        monthMap[sortKey].selected++;
+      }
+    }
+
+    var keys = [];
+    for (var k in monthMap) {
+      keys.push(k);
+    }
+    keys.sort();
+
+    var trends = [];
+    for (var m = 0; m < keys.length; m++) {
+      trends.push({
+        month: monthMap[keys[m]].month,
+        applications: monthMap[keys[m]].applications,
+        shortlisted: monthMap[keys[m]].shortlisted,
+        placements: monthMap[keys[m]].placements,
+        selected: monthMap[keys[m]].selected
+      });
+    }
+
+    return jsonResponse({ success: true, trends: trends });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error calculating placement trends: " + err.toString() });
+  }
+}
+
+
+
 
 

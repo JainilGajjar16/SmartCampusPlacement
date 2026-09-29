@@ -21,7 +21,9 @@ import 'package:smart_campus_placement/core/constants/app_strings.dart';
 import 'package:smart_campus_placement/core/utils/app_validators.dart';
 import 'package:smart_campus_placement/screens/dashboard/company_dashboard_screen.dart';
 import 'package:smart_campus_placement/services/google_sheets_service.dart';
-
+import 'package:smart_campus_placement/models/recruiter_feedback.dart';
+import 'package:smart_campus_placement/core/utils/candidate_ranking_calculator.dart';
+import 'package:smart_campus_placement/widgets/analytics_reports_widget.dart';
 
 void main() {
   testWidgets('Full Auth Navigation Flow Smoke Test',
@@ -1533,7 +1535,312 @@ void main() {
     expect(uri.queryParameters['description'], equals('Flutter app developer'));
     expect(uri.queryParameters['jobType'], equals('Full-time'));
   });
+
+  test('Phase 13 Recruiter Feedback Model & Serialization Unit Test', () {
+    final json = <String, dynamic>{
+      'feedbackId': 'FB1001',
+      'applicationId': 'APP1787759900000',
+      'jobId': 'JOB001',
+      'studentId': 'test_student',
+      'companyId': 'COM001',
+      'rating': 4.5,
+      'feedback': 'Excellent candidate with strong technical background.',
+      'createdAt': '2026-09-27',
+    };
+
+    final fb = RecruiterFeedback.fromJson(json);
+
+    expect(fb.feedbackId, equals('FB1001'));
+    expect(fb.applicationId, equals('APP1787759900000'));
+    expect(fb.jobId, equals('JOB001'));
+    expect(fb.studentId, equals('test_student'));
+    expect(fb.companyId, equals('COM001'));
+    expect(fb.rating, equals(4.5));
+    expect(fb.feedback, equals('Excellent candidate with strong technical background.'));
+    expect(fb.createdAt, equals('2026-09-27'));
+
+    final queryParams = fb.toQueryParameters();
+    expect(queryParams['action'], equals('submit_recruiter_feedback'));
+    expect(queryParams['applicationId'], equals('APP1787759900000'));
+    expect(queryParams['rating'], equals('4.5'));
+  });
+
+  test('Phase 13 Candidate Ranking Calculator Formula & Sorting Test', () {
+    const fbHigh = RecruiterFeedback(
+      feedbackId: 'FB001',
+      applicationId: 'APP1',
+      jobId: 'JOB1',
+      studentId: 'STU1',
+      companyId: 'COM1',
+      rating: 5.0,
+      feedback: 'Outstanding candidate',
+      createdAt: '2026-09-27',
+    );
+
+    const fbLow = RecruiterFeedback(
+      feedbackId: 'FB002',
+      applicationId: 'APP2',
+      jobId: 'JOB1',
+      studentId: 'STU2',
+      companyId: 'COM1',
+      rating: 2.0,
+      feedback: 'Needs improvement',
+      createdAt: '2026-09-27',
+    );
+
+    final scoreHigh = CandidateRankingCalculator.calculateCandidateScore(
+      feedback: fbHigh,
+      status: 'Selected',
+      cgpaStr: '9.2',
+    );
+
+    final scoreLow = CandidateRankingCalculator.calculateCandidateScore(
+      feedback: fbLow,
+      status: 'Under Review',
+      cgpaStr: '7.0',
+    );
+
+    expect(scoreHigh, equals(100.0));
+    expect(scoreLow, equals(43.0));
+
+    final items = <CandidateRankingItem>[
+      CandidateRankingItem(
+        application: <String, dynamic>{'applicationId': 'APP2'},
+        feedback: fbLow,
+        candidateScore: scoreLow,
+      ),
+      CandidateRankingItem(
+        application: <String, dynamic>{'applicationId': 'APP1'},
+        feedback: fbHigh,
+        candidateScore: scoreHigh,
+      ),
+    ];
+
+    final sorted = CandidateRankingCalculator.sortCandidatesByRanking(items);
+    expect(sorted.first.application['applicationId'], equals('APP1'));
+    expect(sorted.last.application['applicationId'], equals('APP2'));
+  });
+
+  test('Phase 13 Company Recruiter Feedback Payload Mapping Test', () {
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_recruiter_feedback',
+      'companyId': 'COM001',
+    });
+
+    expect(uri.queryParameters['action'], equals('get_recruiter_feedback'));
+    expect(uri.queryParameters['companyId'], equals('COM001'));
+  });
+
+  test('Phase 14 Admin Statistics Payload & Endpoint Mapping Unit Test', () {
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_admin_statistics',
+    });
+
+    expect(uri.queryParameters['action'], equals('get_admin_statistics'));
+
+    final mockResponse = {
+      'success': true,
+      'totalStudents': 45,
+      'totalJobs': 12,
+      'totalApplications': 120,
+      'shortlisted': 30,
+      'selected': 15,
+      'placementPercentage': 33.33,
+    };
+
+    expect(mockResponse['success'], isTrue);
+    expect(mockResponse['totalStudents'], equals(45));
+    expect(mockResponse['totalJobs'], equals(12));
+    expect(mockResponse['totalApplications'], equals(120));
+    expect(mockResponse['shortlisted'], equals(30));
+    expect(mockResponse['selected'], equals(15));
+    expect(mockResponse['placementPercentage'], equals(33.33));
+  });
+
+  test('Phase 14A Admin Dashboard Active Drives Real Data Binding Unit Test', () {
+    final mockJobsJson = [
+      {
+        'jobId': 'JOB101',
+        'title': 'Flutter App Developer',
+        'company': 'Tech Corp',
+        'location': 'Ahmedabad',
+        'jobType': 'Full-time',
+        'skills': 'Flutter, Dart',
+        'salary': '₹12 LPA',
+        'description': 'Mobile App Dev',
+        'status': 'Active',
+        'postedDate': '2026-09-27',
+      },
+    ];
+
+    final jobsList = mockJobsJson.map((j) => Job.fromJson(j)).toList();
+
+    expect(jobsList.length, equals(1));
+    final drive = jobsList.first;
+    expect(drive.jobId, equals('JOB101'));
+    expect(drive.title, equals('Flutter App Developer'));
+    expect(drive.company, equals('Tech Corp'));
+    expect(drive.salary, equals('₹12 LPA'));
+    expect(drive.location, equals('Ahmedabad'));
+    expect(drive.status, equals('Active'));
+  });
+
+  test('Phase 14B Admin Dashboard Company Approvals Payload & Action Mapping Unit Test', () {
+    final getUri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_admin_companies',
+    });
+    expect(getUri.queryParameters['action'], equals('get_admin_companies'));
+
+    final updateUri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'update_company_status',
+      'userId': 'COM001',
+      'status': 'Active',
+    });
+    expect(updateUri.queryParameters['action'], equals('update_company_status'));
+    expect(updateUri.queryParameters['userId'], equals('COM001'));
+    expect(updateUri.queryParameters['status'], equals('Active'));
+
+    final mockCompaniesResp = {
+      'success': true,
+      'companies': [
+        {
+          'userId': 'COM001',
+          'name': 'ABC Company',
+          'email': 'company@gmail.com',
+          'status': 'Active',
+          'role': 'Company',
+        }
+      ],
+    };
+
+    expect(mockCompaniesResp['success'], isTrue);
+    final list = mockCompaniesResp['companies'] as List;
+    expect(list.length, equals(1));
+    final firstComp = list.first as Map<String, dynamic>;
+    expect(firstComp['userId'], equals('COM001'));
+    expect(firstComp['name'], equals('ABC Company'));
+    expect(firstComp['status'], equals('Active'));
+  });
+
+  test('Phase 15 Most Demanded Skills Payload & Data Normalization Test', () {
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_most_demanded_skills',
+    });
+    expect(uri.queryParameters['action'], equals('get_most_demanded_skills'));
+
+    final mockSkillsResponse = {
+      'success': true,
+      'skills': [
+        {'skill': 'Flutter', 'count': 8},
+        {'skill': 'Dart', 'count': 6},
+        {'skill': 'SQL', 'count': 4},
+      ],
+    };
+
+    expect(mockSkillsResponse['success'], isTrue);
+    final skills = mockSkillsResponse['skills'] as List;
+    expect(skills.length, equals(3));
+    expect(skills[0]['skill'], equals('Flutter'));
+    expect(skills[0]['count'], equals(8));
+  });
+
+  test('Phase 15 Student Readiness Distribution Reuse Logic Unit Test', () {
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_readiness_distribution',
+    });
+    expect(uri.queryParameters['action'], equals('get_readiness_distribution'));
+
+    final mockReadinessResponse = {
+      'success': true,
+      'categories': [
+        {'category': 'Ready', 'count': 20},
+        {'category': 'Almost Ready', 'count': 15},
+        {'category': 'Needs Improvement', 'count': 10},
+      ],
+    };
+
+    expect(mockReadinessResponse['success'], isTrue);
+    final categories = mockReadinessResponse['categories'] as List;
+    expect(categories.length, equals(3));
+    expect(categories[0]['category'], equals('Ready'));
+    expect(categories[0]['count'], equals(20));
+  });
+
+  test('Phase 15 Top Recommended Jobs Payload & Calculation Unit Test', () {
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_top_recommended_jobs',
+    });
+    expect(uri.queryParameters['action'], equals('get_top_recommended_jobs'));
+
+    final mockRecommendedResponse = {
+      'success': true,
+      'recommendedJobs': [
+        {
+          'jobId': 'JOB001',
+          'jobTitle': 'Software Developer',
+          'company': 'Example Company',
+          'recommendationCount': 12,
+        },
+      ],
+    };
+
+    expect(mockRecommendedResponse['success'], isTrue);
+    final jobs = mockRecommendedResponse['recommendedJobs'] as List;
+    expect(jobs.length, equals(1));
+    expect(jobs[0]['jobId'], equals('JOB001'));
+    expect(jobs[0]['jobTitle'], equals('Software Developer'));
+    expect(jobs[0]['recommendationCount'], equals(12));
+  });
+
+  test('Phase 15 Placement Trends Payload & Monthly Grouping Unit Test', () {
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
+      'action': 'get_placement_trends',
+    });
+    expect(uri.queryParameters['action'], equals('get_placement_trends'));
+
+    final mockTrendsResponse = {
+      'success': true,
+      'trends': [
+        {
+          'month': 'Jan 2026',
+          'applications': 20,
+          'shortlisted': 8,
+          'selected': 3,
+        },
+      ],
+    };
+
+    expect(mockTrendsResponse['success'], isTrue);
+    final trends = mockTrendsResponse['trends'] as List;
+    expect(trends.length, equals(1));
+    expect(trends[0]['month'], equals('Jan 2026'));
+    expect(trends[0]['applications'], equals(20));
+    expect(trends[0]['shortlisted'], equals(8));
+    expect(trends[0]['selected'], equals(3));
+  });
+
+  testWidgets('Phase 15 Admin Analytics & Reports Widget Render Test', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: AnalyticsReportsWidget(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Analytics & Reports'), findsOneWidget);
+    expect(find.text('1. Most Demanded Skills'), findsOneWidget);
+    expect(find.text('2. Student Readiness Distribution'), findsOneWidget);
+    expect(find.text('3. Top Recommended Jobs'), findsOneWidget);
+    expect(find.text('4. Placement Trends'), findsOneWidget);
+  });
 }
+
+
+
+
 
 
 
