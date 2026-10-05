@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/application_status_helper.dart';
+import '../../main.dart';
 import '../../models/job.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/analytics_reports_widget.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Admin Dashboard Screen for System Administrators (ADM001).
 class AdminDashboardScreen extends StatefulWidget {
@@ -243,9 +248,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     final String adminId = session.userId ?? 'ADM001';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.getSurface(context),
         elevation: 0.5,
         titleSpacing: 16,
         title: Row(
@@ -255,12 +260,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Admin Portal',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: AppColors.getTextPrimary(context),
                   ),
                 ),
                 Text(
@@ -276,6 +281,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ],
         ),
         actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
           IconButton(
             tooltip: 'Refresh Statistics',
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
@@ -290,9 +296,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+        child: FadeSlideTransition(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -429,6 +436,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         icon: Icons.school_rounded,
                         color: const Color(0xFF4F46E5),
                         bgColor: const Color(0xFFEEF2FF),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminStudentsDetailScreen(),
+                            ),
+                          ).then((_) => _refreshAllData());
+                        },
                       ),
                       _buildCompactMetricTile(
                         label: 'Active Jobs',
@@ -436,6 +451,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         icon: Icons.business_center_rounded,
                         color: const Color(0xFF0EA5E9),
                         bgColor: const Color(0xFFE0F2FE),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminActiveJobsDetailScreen(),
+                            ),
+                          ).then((_) => _refreshAllData());
+                        },
                       ),
                       _buildCompactMetricTile(
                         label: 'Applications',
@@ -443,6 +466,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         icon: Icons.description_rounded,
                         color: const Color(0xFF6366F1),
                         bgColor: const Color(0xFFEEF2FF),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const AdminApplicationsDetailScreen(),
+                            ),
+                          ).then((_) => _refreshAllData());
+                        },
                       ),
                       _buildCompactMetricTile(
                         label: 'Shortlisted',
@@ -450,6 +482,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         icon: Icons.assignment_turned_in_rounded,
                         color: const Color(0xFFF59E0B),
                         bgColor: const Color(0xFFFEF3C7),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminApplicationsDetailScreen(
+                                statusFilter: 'Shortlisted',
+                              ),
+                            ),
+                          ).then((_) => _refreshAllData());
+                        },
                       ),
                       _buildCompactMetricTile(
                         label: 'Placements',
@@ -457,6 +499,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         icon: Icons.emoji_events_rounded,
                         color: const Color(0xFF10B981),
                         bgColor: const Color(0xFFD1FAE5),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminApplicationsDetailScreen(
+                                statusFilter: 'Selected',
+                              ),
+                            ),
+                          ).then((_) => _refreshAllData());
+                        },
                       ),
                       _buildCompactMetricTile(
                         label: 'Placement Rate',
@@ -466,6 +518,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         icon: Icons.trending_up_rounded,
                         color: const Color(0xFF059669),
                         bgColor: const Color(0xFFD1FAE5),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AdminPlacementRateDetailScreen(
+                                totalApplications: _totalApplications,
+                                selectedCount: _selected,
+                                placementPercentage: _placementPercentage,
+                              ),
+                            ),
+                          ).then((_) => _refreshAllData());
+                        },
                       ),
                     ],
                   );
@@ -600,10 +664,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       iconColor: AppColors.primary,
                       bgColor: AppColors.primary.withValues(alpha: 0.1),
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Opening User Management...')),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.userManagement);
                       },
                     ),
                     const Divider(
@@ -615,10 +676,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       iconColor: Colors.orange.shade800,
                       bgColor: Colors.orange.withValues(alpha: 0.1),
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Opening Broadcast Alert...')),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.systemBroadcast);
                       },
                     ),
                   ],
@@ -1344,8 +1402,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCompactMetricTile({
     required String label,
@@ -1353,61 +1412,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     required IconData icon,
     required Color color,
     required Color bgColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+    return Material(
+      color: AppColors.getSurface(context),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardBorder),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.getCardBorder(context)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                    height: 1.1,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.getTextPrimary(context),
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.getTextSecondary(context),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              if (onTap != null)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: color.withValues(alpha: 0.7),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1464,8 +1537,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     required Color bgColor,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -1495,6 +1570,1269 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         size: 20,
       ),
       onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// 1. Admin Students Detail Screen
+class AdminStudentsDetailScreen extends StatefulWidget {
+  const AdminStudentsDetailScreen({super.key});
+
+  @override
+  State<AdminStudentsDetailScreen> createState() =>
+      _AdminStudentsDetailScreenState();
+}
+
+class _AdminStudentsDetailScreenState
+    extends State<AdminStudentsDetailScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _students = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudents();
+  }
+
+  Future<void> _loadStudents() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res = await GoogleSheetsService().getAdminStudents();
+      if (!mounted) return;
+
+      if (res['success'] == true) {
+        final List raw = res['students'] as List? ?? [];
+        final List<Map<String, dynamic>> list = raw
+            .map((s) => Map<String, dynamic>.from(s is Map ? s : {}))
+            .toList();
+        setState(() {
+          _students = list;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage =
+              res['message']?.toString() ?? 'Failed to load student records.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'An error occurred while fetching student records.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.getBackground(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.getSurface(context),
+        elevation: 0.5,
+        title: Text(
+          'Registered Students',
+          style: TextStyle(
+            color: AppColors.getTextPrimary(context),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            onPressed: _loadStudents,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 15, color: Colors.redAccent),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadStudents,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _students.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.school_outlined,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No registered student records found.',
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadStudents,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _students.length,
+                        itemBuilder: (context, index) {
+                          final item = _students[index];
+                          final name = (item['name'] ?? item['userId'] ?? 'Student')
+                              .toString()
+                              .trim();
+                          final studentId =
+                              (item['studentId'] ?? item['userId'] ?? '')
+                                  .toString()
+                                  .trim();
+                          final email =
+                              (item['email'] ?? '').toString().trim();
+                          final mobile =
+                              (item['mobile'] ?? '').toString().trim();
+                          final course =
+                              (item['course'] ?? item['education'] ?? '')
+                                  .toString()
+                                  .trim();
+                          final semester =
+                              (item['semester'] ?? '').toString().trim();
+                          final skills =
+                              (item['skills'] ?? '').toString().trim();
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            color: AppColors.getSurface(context),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: AppColors.getCardBorder(context),
+                              ),
+                            ),
+                            elevation: 1.5,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: AppColors.primary
+                                            .withValues(alpha: 0.15),
+                                        radius: 20,
+                                        child: Text(
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : 'S',
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.getTextPrimary(
+                                                    context),
+                                              ),
+                                            ),
+                                            if (studentId.isNotEmpty)
+                                              Text(
+                                                'ID: $studentId',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      AppColors.getTextSecondary(
+                                                          context),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Divider(
+                                      height: 1,
+                                      color: AppColors.getCardBorder(context)),
+                                  const SizedBox(height: 10),
+                                  if (email.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.email_outlined,
+                                              size: 14,
+                                              color: AppColors.primary),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              email,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: AppColors.getTextPrimary(
+                                                    context),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (mobile.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.phone_outlined,
+                                              size: 14, color: Colors.green),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            mobile,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.getTextPrimary(
+                                                  context),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (course.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.school_outlined,
+                                              size: 14, color: Colors.orange),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              course,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: AppColors.getTextPrimary(
+                                                    context),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (semester.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.class_outlined,
+                                              size: 14, color: Colors.purple),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Semester / Year: $semester',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.getTextSecondary(
+                                                  context),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (skills.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(Icons.code_outlined,
+                                              size: 14, color: Colors.indigo),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Skills: $skills',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.getTextPrimary(
+                                                    context),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+    );
+  }
+}
+
+/// 2. Admin Active Jobs Detail Screen
+class AdminActiveJobsDetailScreen extends StatefulWidget {
+  const AdminActiveJobsDetailScreen({super.key});
+
+  @override
+  State<AdminActiveJobsDetailScreen> createState() =>
+      _AdminActiveJobsDetailScreenState();
+}
+
+class _AdminActiveJobsDetailScreenState
+    extends State<AdminActiveJobsDetailScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Job> _activeJobs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActiveJobs();
+  }
+
+  Future<void> _loadActiveJobs() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res = await GoogleSheetsService().getJobs();
+      if (!mounted) return;
+
+      if (res['success'] == true && res['jobs'] is List<Job>) {
+        final List<Job> allJobs = res['jobs'] as List<Job>;
+        final activeOnly = allJobs.where((j) {
+          final s = j.status.toLowerCase();
+          return s == 'active' || s == 'open' || s.isEmpty;
+        }).toList();
+
+        setState(() {
+          _activeJobs = activeOnly;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage =
+              res['message']?.toString() ?? 'Failed to load active jobs.';
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'An error occurred while loading active jobs.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.getBackground(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.getSurface(context),
+        elevation: 0.5,
+        title: Text(
+          'Active Job Postings',
+          style: TextStyle(
+            color: AppColors.getTextPrimary(context),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            onPressed: _loadActiveJobs,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 15, color: Colors.redAccent),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadActiveJobs,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _activeJobs.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.business_center_outlined,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No active job postings found.',
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadActiveJobs,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _activeJobs.length,
+                        itemBuilder: (context, index) {
+                          final job = _activeJobs[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            color: AppColors.getSurface(context),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: AppColors.getCardBorder(context),
+                              ),
+                            ),
+                            elevation: 1.5,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0EA5E9)
+                                              .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: const Icon(
+                                          Icons.business_center_rounded,
+                                          color: Color(0xFF0EA5E9),
+                                          size: 22,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              job.title,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.getTextPrimary(
+                                                    context),
+                                              ),
+                                            ),
+                                            Text(
+                                              job.company,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF0EA5E9),
+                                              ),
+                                            ),
+                                            if (job.jobId.isNotEmpty)
+                                              Text(
+                                                'Job ID: ${job.jobId}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color:
+                                                      AppColors.getTextSecondary(
+                                                          context),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green
+                                              .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: Colors.green
+                                                .withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Active',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Divider(
+                                      height: 1,
+                                      color: AppColors.getCardBorder(context)),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on_outlined,
+                                          size: 14, color: AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        job.location.isNotEmpty
+                                            ? job.location
+                                            : 'Remote',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.getTextPrimary(
+                                              context),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      const Icon(
+                                          Icons.monetization_on_outlined,
+                                          size: 14,
+                                          color: Colors.green),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        job.salary.isNotEmpty
+                                            ? job.salary
+                                            : 'Competitive',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.getTextPrimary(
+                                              context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (job.skills.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Skills: ${job.skills}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic,
+                                        color: AppColors.getTextSecondary(
+                                            context),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+    );
+  }
+}
+
+/// 3. Admin Applications Detail Screen (Applications, Shortlisted, Placements)
+class AdminApplicationsDetailScreen extends StatefulWidget {
+  final String? statusFilter;
+
+  const AdminApplicationsDetailScreen({super.key, this.statusFilter});
+
+  @override
+  State<AdminApplicationsDetailScreen> createState() =>
+      _AdminApplicationsDetailScreenState();
+}
+
+class _AdminApplicationsDetailScreenState
+    extends State<AdminApplicationsDetailScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _applications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApplications();
+  }
+
+  Future<void> _loadApplications() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res =
+          await GoogleSheetsService().getCompanyApplications(companyId: 'all');
+      if (!mounted) return;
+
+      if (res['success'] == true && res['applications'] is List) {
+        final List raw = res['applications'] as List;
+        List<Map<String, dynamic>> list = raw
+            .map((a) => Map<String, dynamic>.from(a is Map ? a : {}))
+            .toList();
+
+        if (widget.statusFilter != null &&
+            widget.statusFilter!.trim().isNotEmpty) {
+          final target = widget.statusFilter!.trim().toLowerCase();
+          list = list.where((a) {
+            final norm = ApplicationStatusHelper.normalizeStatus(a['status']);
+            if (target == 'shortlisted') {
+              return norm == ApplicationStatusHelper.statusShortlisted;
+            } else if (target == 'selected') {
+              return norm == ApplicationStatusHelper.statusSelected;
+            } else {
+              return norm.toLowerCase() == target;
+            }
+          }).toList();
+        }
+
+        setState(() {
+          _applications = list;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage =
+              res['message']?.toString() ?? 'Failed to load applications.';
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'An error occurred while loading applications.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _openResume(String url, String name) async {
+    final cleanUrl = url.trim();
+    if (cleanUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No resume link available for $name')),
+      );
+      return;
+    }
+    final Uri uri = Uri.parse(cleanUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Resume URL: $cleanUrl')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String pageTitle = 'Platform Applications';
+    if (widget.statusFilter != null &&
+        widget.statusFilter!.trim().isNotEmpty) {
+      final sf = widget.statusFilter!.trim().toLowerCase();
+      if (sf == 'shortlisted') {
+        pageTitle = 'Shortlisted Applicants';
+      } else if (sf == 'selected') {
+        pageTitle = 'Placed / Selected Students';
+      } else {
+        pageTitle = '${widget.statusFilter} Applications';
+      }
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.getBackground(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.getSurface(context),
+        elevation: 0.5,
+        title: Text(
+          pageTitle,
+          style: TextStyle(
+            color: AppColors.getTextPrimary(context),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            onPressed: _loadApplications,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        Text(
+                          _errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 15, color: Colors.redAccent),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: _loadApplications,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _applications.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.description_outlined,
+                                size: 64, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No ${widget.statusFilter ?? 'application'} records found.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 16, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _loadApplications,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _applications.length,
+                        itemBuilder: (context, index) {
+                          final app = _applications[index];
+                          final name = (app['studentName'] ??
+                                  app['userId'] ??
+                                  app['studentId'] ??
+                                  'Student')
+                              .toString();
+                          final studentId =
+                              (app['userId'] ?? app['studentId'] ?? '')
+                                  .toString();
+                          final title =
+                              (app['title'] ?? 'Role').toString();
+                          final company =
+                              (app['company'] ?? 'Company').toString();
+                          final rawStatus =
+                              (app['status'] ?? 'Applied').toString();
+                          final appliedDate = (app['appliedDate'] ??
+                                  app['date'] ??
+                                  '')
+                              .toString();
+                          final resumeUrl = (app['resumeUrl'] ?? '').toString();
+                          final statusColor =
+                              ApplicationStatusHelper.getStatusColor(rawStatus);
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            color: AppColors.getSurface(context),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: BorderSide(
+                                color: AppColors.getCardBorder(context),
+                              ),
+                            ),
+                            elevation: 1.5,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: statusColor
+                                            .withValues(alpha: 0.15),
+                                        radius: 20,
+                                        child: Text(
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : 'S',
+                                          style: TextStyle(
+                                            color: statusColor,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.getTextPrimary(
+                                                    context),
+                                              ),
+                                            ),
+                                            if (studentId.isNotEmpty)
+                                              Text(
+                                                'ID: $studentId',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      AppColors.getTextSecondary(
+                                                          context),
+                                                ),
+                                              ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '$title • $company',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.primary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: ApplicationStatusHelper
+                                              .getStatusBgColor(rawStatus),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: ApplicationStatusHelper
+                                                .getStatusBorderColor(
+                                                    rawStatus),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          rawStatus,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: statusColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Divider(
+                                      height: 1,
+                                      color: AppColors.getCardBorder(context)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      if (appliedDate.isNotEmpty)
+                                        Text(
+                                          'Applied: $appliedDate',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.getTextSecondary(
+                                                context),
+                                          ),
+                                        )
+                                      else
+                                        const SizedBox.shrink(),
+                                      if (resumeUrl.isNotEmpty)
+                                        TextButton.icon(
+                                          style: TextButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: Size.zero,
+                                            tapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                          ),
+                                          icon: const Icon(
+                                              Icons.description_outlined,
+                                              size: 14,
+                                              color: Colors.purple),
+                                          label: const Text(
+                                            'View Resume',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.purple,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          onPressed: () =>
+                                              _openResume(resumeUrl, name),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+    );
+  }
+}
+
+/// 4. Admin Placement Rate Detail Screen
+class AdminPlacementRateDetailScreen extends StatefulWidget {
+  final int totalApplications;
+  final int selectedCount;
+  final double placementPercentage;
+
+  const AdminPlacementRateDetailScreen({
+    super.key,
+    required this.totalApplications,
+    required this.selectedCount,
+    required this.placementPercentage,
+  });
+
+  @override
+  State<AdminPlacementRateDetailScreen> createState() =>
+      _AdminPlacementRateDetailScreenState();
+}
+
+class _AdminPlacementRateDetailScreenState
+    extends State<AdminPlacementRateDetailScreen> {
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _placedApplications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlacedApplications();
+  }
+
+  Future<void> _loadPlacedApplications() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final res =
+          await GoogleSheetsService().getCompanyApplications(companyId: 'all');
+      if (!mounted) return;
+
+      if (res['success'] == true && res['applications'] is List) {
+        final List raw = res['applications'] as List;
+        final list = raw
+            .map((a) => Map<String, dynamic>.from(a is Map ? a : {}))
+            .where((a) =>
+                ApplicationStatusHelper.normalizeStatus(a['status']) ==
+                ApplicationStatusHelper.statusSelected)
+            .toList();
+
+        setState(() {
+          _placedApplications = list;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = res['message']?.toString() ??
+              'Failed to load placed application records.';
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage =
+            'An error occurred while loading placement details.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.getBackground(context),
+      appBar: AppBar(
+        backgroundColor: AppColors.getSurface(context),
+        elevation: 0.5,
+        title: Text(
+          'Placement Rate Breakdown',
+          style: TextStyle(
+            color: AppColors.getTextPrimary(context),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            onPressed: _loadPlacedApplications,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Rate Calculation Summary Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF059669), Color(0xFF10B981)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF059669).withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Overall Placement Rate',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.placementPercentage.toStringAsFixed(1)}%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Formula:',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Placement Rate = (Placed Applications / Total Applications) × 100',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '= (${widget.selectedCount} / ${widget.totalApplications}) × 100 = ${widget.placementPercentage.toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Underlying Selected Records (${_placedApplications.length})',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.getTextPrimary(context),
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_errorMessage != null)
+              Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.redAccent),
+              )
+            else if (_placedApplications.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.getSurface(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.getCardBorder(context)),
+                ),
+                child: const Text(
+                  'No selected / placed application records found.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _placedApplications.length,
+                itemBuilder: (context, index) {
+                  final app = _placedApplications[index];
+                  final name = (app['studentName'] ?? app['userId'] ?? 'Student')
+                      .toString();
+                  final title = (app['title'] ?? 'Role').toString();
+                  final company = (app['company'] ?? 'Company').toString();
+                  final appliedDate = (app['appliedDate'] ?? '').toString();
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    color: AppColors.getSurface(context),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Colors.green.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFD1FAE5),
+                        child: Icon(Icons.check_circle, color: Color(0xFF059669)),
+                      ),
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextPrimary(context),
+                        ),
+                      ),
+                      subtitle: Text(
+                        '$title • $company',
+                        style: TextStyle(
+                          color: AppColors.getTextSecondary(context),
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: Text(
+                        appliedDate,
+                        style: TextStyle(
+                          color: AppColors.getTextSecondary(context),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

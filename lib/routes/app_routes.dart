@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/job.dart';
 import '../models/student_profile.dart';
+import '../screens/admin/student_details_screen.dart';
+import '../screens/admin/system_broadcast_screen.dart';
+import '../screens/admin/user_management_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -36,6 +39,9 @@ abstract class AppRoutes {
   static const String notifications = '/notifications';
   static const String skillGapAnalysis = '/skill-gap-analysis';
   static const String placementReadiness = '/placement-readiness';
+  static const String userManagement = '/user-management';
+  static const String studentDetails = '/student-details';
+  static const String systemBroadcast = '/system-broadcast';
 
   static Map<String, WidgetBuilder> get routes => {
         welcome: (context) => const WelcomeScreen(),
@@ -54,6 +60,14 @@ abstract class AppRoutes {
         dashboard: (context) => const StudentDashboardScreen(),
         companyDashboard: (context) => const CompanyDashboardScreen(),
         adminDashboard: (context) => const AdminDashboardScreen(),
+        userManagement: (context) => const UserManagementScreen(),
+        studentDetails: (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+                  {};
+          return StudentDetailsScreen(student: args);
+        },
+        systemBroadcast: (context) => const SystemBroadcastScreen(),
         profile: (context) => const StudentProfileScreen(),
         resume: (context) => const ResumeScreen(),
         jobs: (context) => const JobsScreen(),
@@ -91,5 +105,6 @@ abstract class AppRoutes {
         },
       };
 }
+
 
 

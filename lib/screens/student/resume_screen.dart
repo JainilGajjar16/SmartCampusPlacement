@@ -14,6 +14,7 @@ import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/fade_slide_transition.dart';
 
 /// Resume Screen for picking, validating, chunked uploading, and opening PDF resumes.
 class ResumeScreen extends StatefulWidget {
@@ -269,146 +270,154 @@ class _ResumeScreenState extends State<ResumeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = AppColors.getBackground(context);
+    final surfaceColor = AppColors.getSurface(context);
+    final borderColor = AppColors.getCardBorder(context);
+    final textPrimary = AppColors.getTextPrimary(context);
+    final textSecondary = AppColors.getTextSecondary(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           AppStrings.resumeTitle,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: textPrimary,
           ),
         ),
         centerTitle: false,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header Banner Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.cardBorder),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.article_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
-                              Text(
-                                AppStrings.resumeTitle,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                AppStrings.resumeSubtitle,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Upload States Body
-                  if (_uploadedDriveUrl != null) ...[
-                    // Success State Card
-                    _buildSuccessCard(),
-                  ] else if (_isUploading) ...[
-                    // Uploading State Progress Card
-                    _buildProgressCard(),
-                  ] else if (_selectedFile != null) ...[
-                    // Selected File Preview Card
-                    _buildSelectedFileCard(),
-                  ] else ...[
-                    // Empty State Card
-                    _buildEmptyStateCard(),
-                  ],
-
-                  if (_errorMessage != null && !_isUploading) ...[
-                    const SizedBox(height: 16),
+        child: FadeSlideTransition(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header Banner Card
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.red.shade200),
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: borderColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline_rounded,
-                              color: Colors.redAccent, size: 20),
-                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.article_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
                           Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.red.shade900,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppStrings.resumeTitle,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  AppStrings.resumeSubtitle,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: textSecondary,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 24),
+
+                    // Upload States Body
+                    if (_uploadedDriveUrl != null) ...[
+                      // Success State Card
+                      _buildSuccessCard(),
+                    ] else if (_isUploading) ...[
+                      // Uploading State Progress Card
+                      _buildProgressCard(),
+                    ] else if (_selectedFile != null) ...[
+                      // Selected File Preview Card
+                      _buildSelectedFileCard(),
+                    ] else ...[
+                      // Empty State Card
+                      _buildEmptyStateCard(),
+                    ],
+
+                    if (_errorMessage != null && !_isUploading) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                color: Colors.redAccent, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.red.shade900,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -421,9 +430,9 @@ class _ResumeScreenState extends State<ResumeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.getSurface(context),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AppColors.getCardBorder(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -455,20 +464,20 @@ class _ResumeScreenState extends State<ResumeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             AppStrings.noResumeUploaded,
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: AppColors.getTextPrimary(context),
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Select a PDF file (Max 5 MB) from your device.',
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondary,
+              color: AppColors.getTextSecondary(context),
             ),
           ),
           const SizedBox(height: 24),
@@ -488,9 +497,9 @@ class _ResumeScreenState extends State<ResumeScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.getSurface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AppColors.getCardBorder(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -507,7 +516,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: Colors.red.shade50.withValues(alpha: AppColors.isDark(context) ? 0.2 : 1.0),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -523,10 +532,10 @@ class _ResumeScreenState extends State<ResumeScreen> {
                   children: [
                     Text(
                       _selectedFile!.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: AppColors.getTextPrimary(context),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -534,9 +543,9 @@ class _ResumeScreenState extends State<ResumeScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Size: ${_formatFileSize(_selectedFile!.size)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: AppColors.getTextSecondary(context),
                       ),
                     ),
                   ],
@@ -570,9 +579,9 @@ class _ResumeScreenState extends State<ResumeScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.getSurface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AppColors.getCardBorder(context)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -588,10 +597,10 @@ class _ResumeScreenState extends State<ResumeScreen> {
             children: [
               Text(
                 _statusMessage ?? 'Uploading...',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: AppColors.getTextPrimary(context),
                 ),
               ),
               Text(
@@ -610,16 +619,16 @@ class _ResumeScreenState extends State<ResumeScreen> {
             child: LinearProgressIndicator(
               value: _uploadProgress > 0 ? _uploadProgress : null,
               minHeight: 10,
-              backgroundColor: AppColors.background,
+              backgroundColor: AppColors.getBackground(context),
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
           const SizedBox(height: 14),
           Text(
             'Chunk $_currentChunkIndex of $_totalChunks',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: AppColors.getTextSecondary(context),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -632,9 +641,9 @@ class _ResumeScreenState extends State<ResumeScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.getSurface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.shade200),
+        border: Border.all(color: Colors.green.shade200.withValues(alpha: AppColors.isDark(context) ? 0.4 : 1.0)),
         boxShadow: [
           BoxShadow(
             color: Colors.green.withValues(alpha: 0.05),
@@ -648,7 +657,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
+              color: Colors.green.shade50.withValues(alpha: AppColors.isDark(context) ? 0.2 : 1.0),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -658,20 +667,20 @@ class _ResumeScreenState extends State<ResumeScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             AppStrings.resumeUploadSuccess,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: AppColors.getTextPrimary(context),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             _uploadedFileName ?? 'resume.pdf',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: AppColors.getTextSecondary(context),
               fontWeight: FontWeight.w500,
             ),
           ),

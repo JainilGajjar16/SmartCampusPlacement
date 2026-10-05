@@ -3,11 +3,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/application_status_helper.dart';
 import '../../core/utils/candidate_ranking_calculator.dart';
+import '../../main.dart';
 import '../../models/job.dart';
 import '../../models/recruiter_feedback.dart';
+import '../../models/student_profile.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Original Company Dashboard implementation using real Google Sheets data backend.
 class CompanyDashboard extends StatefulWidget {
@@ -47,10 +51,12 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
         final c = job.company.toLowerCase();
         final targetId = currentCompanyId.toLowerCase();
         final targetName = currentCompanyName.toLowerCase();
-        if (targetId.isNotEmpty && (c.contains(targetId) || targetId.contains(c))) {
+        if (targetId.isNotEmpty &&
+            (c.contains(targetId) || targetId.contains(c))) {
           return true;
         }
-        if (targetName.isNotEmpty && (c.contains(targetName) || targetName.contains(c))) {
+        if (targetName.isNotEmpty &&
+            (c.contains(targetName) || targetName.contains(c))) {
           return true;
         }
         return false;
@@ -58,7 +64,9 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
 
       // 2. Fetch real company applications
       final appsResult = await GoogleSheetsService().getCompanyApplications(
-        companyId: currentCompanyId.isNotEmpty ? currentCompanyId : currentCompanyName,
+        companyId: currentCompanyId.isNotEmpty
+            ? currentCompanyId
+            : currentCompanyName,
       );
       final List<Map<String, dynamic>> companyApps =
           appsResult['applications'] as List<Map<String, dynamic>>? ?? [];
@@ -121,7 +129,9 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
   @override
   Widget build(BuildContext context) {
     final session = UserSession();
-    final String companyName = session.name?.isNotEmpty == true ? session.name! : 'Company';
+    final String companyName = session.name?.isNotEmpty == true
+        ? session.name!
+        : 'Company';
 
     final int postedJobsCount = _companyJobs.length;
     final int totalApplicantsCount = _companyApps.length;
@@ -136,18 +146,19 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
     }).length;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.getSurface(context),
         elevation: 0.5,
-        title: const Text(
+        title: Text(
           'Company Dashboard',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh, color: AppColors.primary),
@@ -161,249 +172,287 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchCompanyData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.business,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome, $companyName 🏢',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Manage jobs and campus recruitment.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Quick Actions Section
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Compact & Responsive Quick Actions Grid
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bool isDesktop = constraints.maxWidth >= 600;
-                    return GridView.count(
-                      crossAxisCount: isDesktop ? 3 : 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: isDesktop ? 2.0 : 1.6,
-                      children: [
-                        _buildQuickActionCard(
-                          icon: Icons.add_business,
-                          color: Colors.green,
-                          title: 'Post Job',
-                          subtitle: 'Create a new job opening',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PostJobScreen(),
-                              ),
-                            ).then((_) => _fetchCompanyData());
-                          },
-                        ),
-                        _buildQuickActionCard(
-                          icon: Icons.work_outline,
-                          color: Colors.orange,
-                          title: 'My Jobs',
-                          subtitle: 'View your posted jobs',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MyJobsScreen(),
-                              ),
-                            ).then((_) => _fetchCompanyData());
-                          },
-                        ),
-                        _buildQuickActionCard(
-                          icon: Icons.people_outline,
-                          color: Colors.blue,
-                          title: 'Applicants',
-                          subtitle: 'View student applications',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ApplicantsScreen(),
-                              ),
-                            ).then((_) => _fetchCompanyData());
-                          },
-                        ),
-                        _buildQuickActionCard(
-                          icon: Icons.description_outlined,
-                          color: Colors.purple,
-                          title: 'Student Resumes',
-                          subtitle: 'View applicant resumes',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CompanyResumesScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _buildQuickActionCard(
-                          icon: Icons.business_outlined,
-                          color: Colors.indigo,
-                          title: 'Company Profile',
-                          subtitle: 'Manage company info',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CompanyProfileScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _buildQuickActionCard(
-                          icon: Icons.logout,
-                          color: Colors.red,
-                          title: 'Logout',
-                          subtitle: 'Sign out from account',
-                          onTap: () => _showLogoutDialog(context),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 24),
-
-                // Recruitment Overview Section
-                const Text(
-                  'Recruitment Overview',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                if (_isLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                else
+        child: FadeSlideTransition(
+          child: RefreshIndicator(
+            onRefresh: _fetchCompanyData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header Card
                   Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
-                      border: Border.all(color: AppColors.cardBorder),
                     ),
-                    child: Column(
+                    child: Row(
                       children: [
-                        _buildOverviewItem(
-                          icon: Icons.work,
-                          color: Colors.orange,
-                          title: 'Posted Jobs',
-                          value: '$postedJobsCount',
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.business,
+                            color: Colors.white,
+                            size: 36,
+                          ),
                         ),
-                        const Divider(height: 1),
-                        _buildOverviewItem(
-                          icon: Icons.people,
-                          color: Colors.blue,
-                          title: 'Total Applicants',
-                          value: '$totalApplicantsCount',
-                        ),
-                        const Divider(height: 1),
-                        _buildOverviewItem(
-                          icon: Icons.pending_actions,
-                          color: Colors.orange,
-                          title: 'Pending Applications',
-                          value: '$pendingAppsCount',
-                        ),
-                        const Divider(height: 1),
-                        _buildOverviewItem(
-                          icon: Icons.check_circle,
-                          color: Colors.green,
-                          title: 'Selected Students',
-                          value: '$selectedStudentsCount',
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome, $companyName 🏢',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Manage jobs and campus recruitment.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-              ],
+
+                  const SizedBox(height: 24),
+
+                  // Quick Actions Section
+                  const Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Compact & Responsive Quick Actions Grid
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final bool isDesktop = constraints.maxWidth >= 600;
+                      return GridView.count(
+                        crossAxisCount: isDesktop ? 3 : 2,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: isDesktop ? 2.0 : 1.6,
+                        children: [
+                          _buildQuickActionCard(
+                            icon: Icons.add_business,
+                            color: Colors.green,
+                            title: 'Post Job',
+                            subtitle: 'Create a new job opening',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PostJobScreen(),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                          _buildQuickActionCard(
+                            icon: Icons.work_outline,
+                            color: Colors.orange,
+                            title: 'My Jobs',
+                            subtitle: 'View your posted jobs',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MyJobsScreen(),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                          _buildQuickActionCard(
+                            icon: Icons.people_outline,
+                            color: Colors.blue,
+                            title: 'Applicants',
+                            subtitle: 'View student applications',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ApplicantsScreen(),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                          _buildQuickActionCard(
+                            icon: Icons.description_outlined,
+                            color: Colors.purple,
+                            title: 'Student Resumes',
+                            subtitle: 'View applicant resumes',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CompanyResumesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildQuickActionCard(
+                            icon: Icons.business_outlined,
+                            color: Colors.indigo,
+                            title: 'Company Profile',
+                            subtitle: 'Manage company info',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CompanyProfileScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _buildQuickActionCard(
+                            icon: Icons.logout,
+                            color: Colors.red,
+                            title: 'Logout',
+                            subtitle: 'Sign out from account',
+                            onTap: () => _showLogoutDialog(context),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Recruitment Overview Section
+                  const Text(
+                    'Recruitment Overview',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildOverviewItem(
+                            icon: Icons.work,
+                            color: Colors.orange,
+                            title: 'Posted Jobs',
+                            value: '$postedJobsCount',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MyJobsScreen(),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                          const Divider(height: 1),
+                          _buildOverviewItem(
+                            icon: Icons.people,
+                            color: Colors.blue,
+                            title: 'Total Applicants',
+                            value: '$totalApplicantsCount',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ApplicantsScreen(),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                          const Divider(height: 1),
+                          _buildOverviewItem(
+                            icon: Icons.pending_actions,
+                            color: Colors.orange,
+                            title: 'Pending Applications',
+                            value: '$pendingAppsCount',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ApplicantsScreen(
+                                    statusFilter: 'Pending',
+                                  ),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                          const Divider(height: 1),
+                          _buildOverviewItem(
+                            icon: Icons.check_circle,
+                            color: Colors.green,
+                            title: 'Selected Students',
+                            value: '$selectedStudentsCount',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ApplicantsScreen(
+                                    statusFilter: 'Selected',
+                                  ),
+                                ),
+                              ).then((_) => _fetchCompanyData());
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -479,39 +528,51 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
     required Color color,
     required String title,
     required String value,
+    VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-        ],
+            if (onTap != null) ...[
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: color.withValues(alpha: 0.6),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -539,8 +600,9 @@ class _PostJobScreenState extends State<PostJobScreen> {
   void initState() {
     super.initState();
     final session = UserSession();
-    _companyNameController.text =
-        session.name?.isNotEmpty == true ? session.name! : (session.userId ?? 'Company');
+    _companyNameController.text = session.name?.isNotEmpty == true
+        ? session.name!
+        : (session.userId ?? 'Company');
   }
 
   @override
@@ -660,8 +722,9 @@ class _PostJobScreenState extends State<PostJobScreen> {
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.code),
                 ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Enter required skills' : null,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Enter required skills'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -757,8 +820,13 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
 
       final myJobs = allJobs.where((j) {
         final comp = j.company.toLowerCase();
-        if (cId.isNotEmpty && (comp.contains(cId) || cId.contains(comp))) return true;
-        if (cName.isNotEmpty && (comp.contains(cName) || cName.contains(comp))) return true;
+        if (cId.isNotEmpty && (comp.contains(cId) || cId.contains(comp))) {
+          return true;
+        }
+        if (cName.isNotEmpty &&
+            (comp.contains(cName) || cName.contains(comp))) {
+          return true;
+        }
         return false;
       }).toList();
 
@@ -793,53 +861,50 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
       appBar: AppBar(
         title: const Text('My Jobs'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadMyJobs,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadMyJobs),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _jobs.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.work_off_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No job openings posted yet.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.work_off_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No job openings posted yet.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadMyJobs,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _jobs.length,
-                    itemBuilder: (context, index) {
-                      final job = _jobs[index];
-                      final count = _applicantCounts[job.jobId] ?? 0;
-                      return CompanyJobCard(
-                        job: {
-                          'id': job.jobId,
-                          'title': job.title,
-                          'company': job.company,
-                          'location': job.location,
-                          'skills': job.skills,
-                          'salary': job.salary,
-                          'description': job.description,
-                          'status': job.status,
-                          'postedDate': job.postedDate,
-                          'applicants': count,
-                        },
-                      );
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadMyJobs,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _jobs.length,
+                itemBuilder: (context, index) {
+                  final job = _jobs[index];
+                  final count = _applicantCounts[job.jobId] ?? 0;
+                  return CompanyJobCard(
+                    job: {
+                      'id': job.jobId,
+                      'title': job.title,
+                      'company': job.company,
+                      'location': job.location,
+                      'skills': job.skills,
+                      'salary': job.salary,
+                      'description': job.description,
+                      'status': job.status,
+                      'postedDate': job.postedDate,
+                      'applicants': count,
                     },
-                  ),
-                ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -849,11 +914,7 @@ class CompanyJobCard extends StatelessWidget {
   final Map<String, dynamic> job;
   final VoidCallback? onDelete;
 
-  const CompanyJobCard({
-    super.key,
-    required this.job,
-    this.onDelete,
-  });
+  const CompanyJobCard({super.key, required this.job, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -882,8 +943,10 @@ class CompanyJobCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: isInactive
                         ? Colors.grey.withValues(alpha: 0.1)
@@ -905,7 +968,9 @@ class CompanyJobCard extends StatelessWidget {
             Text(
               job['company'] ?? 'Company Name',
               style: TextStyle(
-                  color: Colors.grey[700], fontWeight: FontWeight.w600),
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 6),
             Row(
@@ -924,19 +989,53 @@ class CompanyJobCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Skills: ${job['skills']}',
-                style:
-                    const TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ],
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${job['applicants'] ?? 0} Applicants',
-                  style: const TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.bold,
+                InkWell(
+                  onTap: () {
+                    final jobId = (job['id'] ?? job['jobId'] ?? '').toString();
+                    final jobTitle = (job['title'] ?? '').toString();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ApplicantsScreen(jobId: jobId, jobTitle: jobTitle),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.people_alt_outlined,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${job['applicants'] ?? 0} Applicants',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 if (onDelete != null)
@@ -955,7 +1054,16 @@ class CompanyJobCard extends StatelessWidget {
 
 /// 3. APPLICANTS SCREEN - Real Google Sheets Applications & Candidate Ranking (Phase 13)
 class ApplicantsScreen extends StatefulWidget {
-  const ApplicantsScreen({super.key});
+  final String? jobId;
+  final String? jobTitle;
+  final String? statusFilter;
+
+  const ApplicantsScreen({
+    super.key,
+    this.jobId,
+    this.jobTitle,
+    this.statusFilter,
+  });
 
   @override
   State<ApplicantsScreen> createState() => _ApplicantsScreenState();
@@ -963,6 +1071,7 @@ class ApplicantsScreen extends StatefulWidget {
 
 class _ApplicantsScreenState extends State<ApplicantsScreen> {
   bool _isLoading = true;
+  String? _errorMessage;
   bool _sortByRanking = true;
   List<Map<String, dynamic>> _applicants = [];
   Map<String, RecruiterFeedback> _feedbackMap = {};
@@ -975,7 +1084,10 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
 
   Future<void> _loadApplicants() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     final session = UserSession();
     final String companyId = session.userId ?? '';
 
@@ -984,8 +1096,84 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
       final appsRes = await GoogleSheetsService().getCompanyApplications(
         companyId: companyId,
       );
-      final List<Map<String, dynamic>> apps =
+
+      final List<Map<String, dynamic>> rawApps =
           appsRes['applications'] as List<Map<String, dynamic>>? ?? [];
+
+      List<Map<String, dynamic>> apps = rawApps;
+
+      // Filter by jobId if widget.jobId is passed
+      if (widget.jobId != null && widget.jobId!.trim().isNotEmpty) {
+        final targetJobId = widget.jobId!.trim().toLowerCase();
+        apps = apps.where((a) {
+          final jId = (a['jobId'] ?? '').toString().trim().toLowerCase();
+          return jId == targetJobId;
+        }).toList();
+      }
+
+      // Filter by statusFilter if widget.statusFilter is passed
+      if (widget.statusFilter != null &&
+          widget.statusFilter!.trim().isNotEmpty) {
+        final sf = widget.statusFilter!.trim().toLowerCase();
+        apps = apps.where((a) {
+          final norm = ApplicationStatusHelper.normalizeStatus(a['status']);
+          if (sf == 'pending') {
+            return norm == ApplicationStatusHelper.statusApplied ||
+                norm == ApplicationStatusHelper.statusUnderReview;
+          } else if (sf == 'selected') {
+            return norm == ApplicationStatusHelper.statusSelected;
+          } else {
+            return norm.toLowerCase() == sf;
+          }
+        }).toList();
+      }
+
+      // Enrich student profile data (Email, Mobile, Skills, Resume URL, etc.)
+      final userIds = apps
+          .map((a) => (a['userId'] ?? a['studentId'] ?? '').toString().trim())
+          .where((id) => id.isNotEmpty)
+          .toSet();
+
+      final Map<String, StudentProfile> profilesCache = {};
+      for (final uId in userIds) {
+        try {
+          final profRes = await GoogleSheetsService().getStudentProfile(
+            userId: uId,
+          );
+          if (profRes['success'] == true) {
+            profilesCache[uId.toLowerCase()] = StudentProfile.fromJson(profRes);
+          }
+        } catch (_) {}
+      }
+
+      final enrichedApps = apps.map((app) {
+        final uId = (app['userId'] ?? app['studentId'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        final prof = profilesCache[uId];
+        final map = Map<String, dynamic>.from(app);
+
+        if (prof != null) {
+          if ((map['studentName'] ?? '').toString().isEmpty ||
+              map['studentName'] == map['userId']) {
+            if (prof.name.isNotEmpty) map['studentName'] = prof.name;
+          }
+          if ((map['email'] ?? '').toString().isEmpty &&
+              prof.email.isNotEmpty) {
+            map['email'] = prof.email;
+          }
+          if ((map['mobile'] ?? '').toString().isEmpty &&
+              prof.mobile.isNotEmpty) {
+            map['mobile'] = prof.mobile;
+          }
+          if ((map['skills'] ?? '').toString().isEmpty &&
+              prof.skills.isNotEmpty) {
+            map['skills'] = prof.skills;
+          }
+        }
+        return map;
+      }).toList();
 
       // 2. Fetch real recruiter feedback from Google Sheets (Phase 13)
       final fbRes = await GoogleSheetsService().getRecruiterFeedback(
@@ -1007,14 +1195,38 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
 
       if (mounted) {
         setState(() {
-          _applicants = apps;
+          _applicants = enrichedApps;
           _feedbackMap = fbMap;
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _errorMessage =
+              'An error occurred while loading applicants: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _openResume(String url, String name) async {
+    final cleanUrl = url.trim();
+    if (cleanUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No resume link available for $name')),
+      );
+      return;
+    }
+    final Uri uri = Uri.parse(cleanUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open resume link: $cleanUrl')),
+        );
       }
     }
   }
@@ -1079,7 +1291,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
   }
 
   void _showStatusDialog(Map<String, dynamic> app) {
-    final currentStatus = ApplicationStatusHelper.normalizeStatus(app['status']);
+    final currentStatus = ApplicationStatusHelper.normalizeStatus(
+      app['status'],
+    );
     final statuses = [
       ApplicationStatusHelper.statusUnderReview,
       ApplicationStatusHelper.statusShortlisted,
@@ -1101,7 +1315,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                 ApplicationStatusHelper.getStatusIcon(status),
                 color: ApplicationStatusHelper.getStatusColor(status),
               ),
-              trailing: isCurrent ? const Icon(Icons.check, color: Colors.green) : null,
+              trailing: isCurrent
+                  ? const Icon(Icons.check, color: Colors.green)
+                  : null,
               onTap: () {
                 Navigator.pop(context);
                 _updateStatus(app['applicationId'].toString(), status);
@@ -1125,7 +1341,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
         !currentCompanyId.toLowerCase().contains(appCompanyId.toLowerCase())) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Unauthorized: You can only submit feedback for your company\'s applications.'),
+          content: Text(
+            'Unauthorized: You can only submit feedback for your company\'s applications.',
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -1135,7 +1353,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
     final existingFb = _getFeedbackForApp(app);
     double rating = existingFb?.rating ?? 4.0;
     if (rating <= 0) rating = 4.0;
-    final commentController = TextEditingController(text: existingFb?.feedback ?? '');
+    final commentController = TextEditingController(
+      text: existingFb?.feedback ?? '',
+    );
 
     showDialog(
       context: context,
@@ -1143,7 +1363,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: Row(
                 children: [
                   const Icon(Icons.rate_review, color: AppColors.primary),
@@ -1151,7 +1373,10 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                   Expanded(
                     child: Text(
                       'Rate & Feedback: ${app['studentName'] ?? app['userId']}',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -1163,16 +1388,25 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                   children: [
                     Text(
                       'Job: ${app['title'] ?? app['jobId'] ?? 'Applied Role'}',
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     Text(
                       'Application ID: ${app['applicationId'] ?? 'N/A'}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textLight),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textLight,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
                       'Candidate Rating (1.0 to 5.0):',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -1181,7 +1415,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                         final starValue = (index + 1).toDouble();
                         return IconButton(
                           icon: Icon(
-                            rating >= starValue ? Icons.star : Icons.star_border,
+                            rating >= starValue
+                                ? Icons.star
+                                : Icons.star_border,
                             color: Colors.amber,
                             size: 32,
                           ),
@@ -1206,16 +1442,25 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                     const SizedBox(height: 16),
                     const Text(
                       'Recruiter Feedback / Evaluation Notes:',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: commentController,
                       maxLines: 3,
                       decoration: InputDecoration(
-                        hintText: 'e.g. Strong technical skills, great communication, recommended for interview.',
-                        hintStyle: const TextStyle(fontSize: 12, color: AppColors.textLight),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        hintText:
+                            'e.g. Strong technical skills, great communication, recommended for interview.',
+                        hintStyle: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textLight,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         contentPadding: const EdgeInsets.all(12),
                       ),
                     ),
@@ -1230,10 +1475,15 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   icon: const Icon(Icons.send, size: 16, color: Colors.white),
-                  label: const Text('Submit Feedback', style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'Submit Feedback',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   onPressed: () async {
                     Navigator.pop(dialogContext);
 
@@ -1241,24 +1491,29 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                       feedbackId: 'FB${DateTime.now().millisecondsSinceEpoch}',
                       applicationId: (app['applicationId'] ?? '').toString(),
                       jobId: (app['jobId'] ?? '').toString(),
-                      studentId: (app['userId'] ?? app['studentId'] ?? '').toString(),
+                      studentId: (app['userId'] ?? app['studentId'] ?? '')
+                          .toString(),
                       companyId: session.userId ?? appCompanyId,
                       rating: rating,
                       feedback: commentController.text.trim(),
-                      createdAt: DateTime.now().toIso8601String().split('T').first,
+                      createdAt: DateTime.now()
+                          .toIso8601String()
+                          .split('T')
+                          .first,
                     );
 
                     final scaffoldMessenger = ScaffoldMessenger.of(context);
-                    final submitRes = await GoogleSheetsService().submitRecruiterFeedback(
-                      feedback: feedbackObj,
-                    );
+                    final submitRes = await GoogleSheetsService()
+                        .submitRecruiterFeedback(feedback: feedbackObj);
 
                     if (!mounted) return;
 
                     if (submitRes['success'] == true) {
                       scaffoldMessenger.showSnackBar(
                         const SnackBar(
-                          content: Text('Recruiter feedback saved to Google Sheets!'),
+                          content: Text(
+                            'Recruiter feedback saved to Google Sheets!',
+                          ),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -1266,7 +1521,10 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                     } else {
                       scaffoldMessenger.showSnackBar(
                         SnackBar(
-                          content: Text(submitRes['message'] ?? 'Failed to submit feedback.'),
+                          content: Text(
+                            submitRes['message'] ??
+                                'Failed to submit feedback.',
+                          ),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -1284,315 +1542,764 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
   @override
   Widget build(BuildContext context) {
     final rankedCandidates = _getRankedCandidates();
+    final bool hasJobFilter =
+        widget.jobTitle?.isNotEmpty == true || widget.jobId?.isNotEmpty == true;
+    final bool hasStatusFilter = widget.statusFilter?.isNotEmpty == true;
+
+    String pageTitle = 'Applicants & Ranking';
+    if (hasJobFilter) {
+      pageTitle = 'Applicants: ${widget.jobTitle ?? widget.jobId}';
+    } else if (hasStatusFilter) {
+      final sf = widget.statusFilter!.trim().toLowerCase();
+      if (sf == 'pending') {
+        pageTitle = 'Pending Applications';
+      } else if (sf == 'selected') {
+        pageTitle = 'Selected Students';
+      } else {
+        pageTitle = '${widget.statusFilter} Applicants';
+      }
+    }
+
+    String emptyMessage = 'No student applications received yet.';
+    if (hasJobFilter) {
+      emptyMessage = 'No applicants have applied for this job yet.';
+    } else if (hasStatusFilter) {
+      final sf = widget.statusFilter!.trim().toLowerCase();
+      if (sf == 'pending') {
+        emptyMessage = 'No pending applications found.';
+      } else if (sf == 'selected') {
+        emptyMessage = 'No selected students found.';
+      } else {
+        emptyMessage = 'No ${widget.statusFilter} applicants found.';
+      }
+    }
 
     return Scaffold(
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
-        title: const Text('Applicants & Ranking'),
+        title: Text(
+          pageTitle,
+          style: TextStyle(
+            color: AppColors.getTextPrimary(context),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppColors.getSurface(context),
+        elevation: 0.5,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
             onPressed: _loadApplicants,
           ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _applicants.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No student applications received yet.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
+          : _errorMessage != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Sorting & Candidate Ranking Header Bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total Candidates: ${rankedCandidates.length}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          FilterChip(
-                            avatar: Icon(
-                              Icons.star_rate_rounded,
-                              size: 16,
-                              color: _sortByRanking ? Colors.white : AppColors.primary,
-                            ),
-                            label: Text(
-                              _sortByRanking ? 'Sorted by Rank Score' : 'Sort by Rank Score',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: _sortByRanking ? Colors.white : AppColors.primary,
-                              ),
-                            ),
-                            selected: _sortByRanking,
-                            selectedColor: AppColors.primary,
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                            onSelected: (val) {
-                              setState(() {
-                                _sortByRanking = val;
-                              });
-                            },
-                          ),
-                        ],
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.redAccent,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.redAccent,
                       ),
                     ),
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _loadApplicants,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          itemCount: rankedCandidates.length,
-                          itemBuilder: (context, index) {
-                            final item = rankedCandidates[index];
-                            final app = item.application;
-                            final name = (app['studentName'] ?? '').toString().isNotEmpty
-                                ? app['studentName'].toString()
-                                : (app['userId'] ?? 'Student');
-                            final rawStatus = (app['status'] ?? 'Applied').toString();
-                            final statusColor = ApplicationStatusHelper.getStatusColor(rawStatus);
-                            final fb = item.feedback;
-
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: BorderSide(
-                                  color: item.hasFeedback
-                                      ? Colors.amber.withValues(alpha: 0.5)
-                                      : Colors.grey.withValues(alpha: 0.2),
-                                  width: item.hasFeedback ? 1.5 : 1.0,
-                                ),
-                              ),
-                              elevation: 2,
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Top Row: Avatar, Name, Job Role, Status Chip
-                                    Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor: statusColor.withValues(alpha: 0.15),
-                                          radius: 22,
-                                          child: Text(
-                                            name.isNotEmpty ? name[0].toUpperCase() : 'S',
-                                            style: TextStyle(
-                                              color: statusColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                name,
-                                                style: const TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Role: ${app['title'] ?? app['jobId'] ?? 'Applied Position'}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.textSecondary,
-                                                ),
-                                              ),
-                                              Text(
-                                                'CGPA: ${app['cgpa']?.toString().isNotEmpty == true ? app['cgpa'] : 'N/A'} | ID: ${app['applicationId'] ?? 'N/A'}',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: AppColors.textLight,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        ActionChip(
-                                          avatar: Icon(
-                                            ApplicationStatusHelper.getStatusIcon(rawStatus),
-                                            size: 14,
-                                            color: statusColor,
-                                          ),
-                                          label: Text(
-                                            rawStatus,
-                                            style: TextStyle(
-                                              color: statusColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                          backgroundColor: ApplicationStatusHelper.getStatusBgColor(rawStatus),
-                                          side: BorderSide(
-                                            color: ApplicationStatusHelper.getStatusBorderColor(rawStatus),
-                                          ),
-                                          onPressed: () => _showStatusDialog(app),
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(height: 10),
-                                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                                    const SizedBox(height: 10),
-
-                                    // Phase 13 Candidate Score & Recruiter Feedback Display
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        // Candidate Rank Score Badge
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF4F46E5).withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(
-                                              color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.analytics_outlined, size: 14, color: Color(0xFF4F46E5)),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Candidate Score: ${item.candidateScore.toStringAsFixed(1)}/100',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF4F46E5),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // Recruiter Feedback / Rate Action Button
-                                        OutlinedButton.icon(
-                                          style: OutlinedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            side: BorderSide(
-                                              color: item.hasFeedback ? Colors.amber.shade700 : AppColors.primary,
-                                            ),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                          ),
-                                          icon: Icon(
-                                            item.hasFeedback ? Icons.star : Icons.rate_review_outlined,
-                                            size: 14,
-                                            color: item.hasFeedback ? Colors.amber.shade700 : AppColors.primary,
-                                          ),
-                                          label: Text(
-                                            item.hasFeedback ? 'Edit Feedback' : 'Rate & Feedback',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: item.hasFeedback ? Colors.amber.shade700 : AppColors.primary,
-                                            ),
-                                          ),
-                                          onPressed: () => _showFeedbackDialog(app),
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(height: 8),
-
-                                    // Stored Recruiter Feedback Details OR Empty State
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: item.hasFeedback
-                                            ? Colors.amber.withValues(alpha: 0.08)
-                                            : Colors.grey.withValues(alpha: 0.06),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: item.hasFeedback
-                                              ? Colors.amber.withValues(alpha: 0.25)
-                                              : Colors.transparent,
-                                        ),
-                                      ),
-                                      child: item.hasFeedback
-                                          ? Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    const Icon(Icons.star, size: 14, color: Colors.amber),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      'Recruiter Rating: ${fb!.rating.toStringAsFixed(1)} / 5.0',
-                                                      style: const TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Colors.amber,
-                                                      ),
-                                                    ),
-                                                    const Spacer(),
-                                                    if (fb.createdAt.isNotEmpty)
-                                                      Text(
-                                                        fb.createdAt,
-                                                        style: const TextStyle(
-                                                          fontSize: 10,
-                                                          color: AppColors.textLight,
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                                if (fb.feedback.isNotEmpty) ...[
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    'Feedback: "${fb.feedback}"',
-                                                    style: const TextStyle(
-                                                      fontSize: 11,
-                                                      fontStyle: FontStyle.italic,
-                                                      color: AppColors.textPrimary,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            )
-                                          : const Text(
-                                              'No recruiter feedback yet',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontStyle: FontStyle.italic,
-                                                color: AppColors.textSecondary,
-                                              ),
-                                            ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _loadApplicants,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
                     ),
                   ],
                 ),
+              ),
+            )
+          : _applicants.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.people_outline,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      emptyMessage,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                // Top Status Banner (When filtered by Status)
+                if (hasStatusFilter && !hasJobFilter)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors:
+                            widget.statusFilter!.trim().toLowerCase() ==
+                                'selected'
+                            ? [const Color(0xFF059669), const Color(0xFF10B981)]
+                            : [
+                                const Color(0xFFD97706),
+                                const Color(0xFFF59E0B),
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          widget.statusFilter!.trim().toLowerCase() ==
+                                  'selected'
+                              ? Icons.check_circle_rounded
+                              : Icons.hourglass_top_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            widget.statusFilter!.trim().toLowerCase() ==
+                                    'pending'
+                                ? 'Filtered: Pending & Under Review Applications'
+                                : widget.statusFilter!.trim().toLowerCase() ==
+                                      'selected'
+                                ? 'Filtered: Selected Students'
+                                : 'Filtered: ${widget.statusFilter} Applications',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Top Job Banner (When filtered by Job)
+                if (hasJobFilter)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.work,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                widget.jobTitle ?? 'Job Applicants',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (widget.jobId != null &&
+                            widget.jobId!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Job ID: ${widget.jobId}',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                // Sorting & Candidate Ranking Header Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total Applicants: ${rankedCandidates.length}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextPrimary(context),
+                        ),
+                      ),
+                      FilterChip(
+                        avatar: Icon(
+                          Icons.star_rate_rounded,
+                          size: 16,
+                          color: _sortByRanking
+                              ? Colors.white
+                              : AppColors.primary,
+                        ),
+                        label: Text(
+                          _sortByRanking
+                              ? 'Sorted by Rank Score'
+                              : 'Sort by Rank Score',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _sortByRanking
+                                ? Colors.white
+                                : AppColors.primary,
+                          ),
+                        ),
+                        selected: _sortByRanking,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.1,
+                        ),
+                        onSelected: (val) {
+                          setState(() {
+                            _sortByRanking = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadApplicants,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      itemCount: rankedCandidates.length,
+                      itemBuilder: (context, index) {
+                        final item = rankedCandidates[index];
+                        final app = item.application;
+                        final name =
+                            (app['studentName'] ?? '').toString().isNotEmpty
+                            ? app['studentName'].toString()
+                            : ((app['userId'] ?? app['studentId'] ?? 'Student')
+                                  .toString());
+                        final studentId =
+                            (app['userId'] ?? app['studentId'] ?? '')
+                                .toString();
+                        final email = (app['email'] ?? '').toString().trim();
+                        final mobile = (app['mobile'] ?? '').toString().trim();
+                        final skills = (app['skills'] ?? '').toString().trim();
+                        final appliedDate =
+                            (app['appliedDate'] ?? app['date'] ?? '')
+                                .toString()
+                                .trim();
+                        final resumeUrl = (app['resumeUrl'] ?? '')
+                            .toString()
+                            .trim();
+                        final rawStatus = (app['status'] ?? 'Applied')
+                            .toString();
+                        final statusColor =
+                            ApplicationStatusHelper.getStatusColor(rawStatus);
+                        final fb = item.feedback;
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          color: AppColors.getSurface(context),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(
+                              color: item.hasFeedback
+                                  ? Colors.amber.withValues(alpha: 0.5)
+                                  : AppColors.getCardBorder(context),
+                              width: item.hasFeedback ? 1.5 : 1.0,
+                            ),
+                          ),
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Top Row: Avatar, Name, Student ID, Status Chip
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: statusColor.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      radius: 22,
+                                      child: Text(
+                                        name.isNotEmpty
+                                            ? name[0].toUpperCase()
+                                            : 'S',
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.getTextPrimary(
+                                                context,
+                                              ),
+                                            ),
+                                          ),
+                                          if (studentId.isNotEmpty)
+                                            Text(
+                                              'Student ID: $studentId',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color:
+                                                    AppColors.getTextSecondary(
+                                                      context,
+                                                    ),
+                                              ),
+                                            ),
+                                          if ((app['title'] ?? '')
+                                                  .toString()
+                                                  .isNotEmpty &&
+                                              !hasJobFilter)
+                                            Text(
+                                              'Role: ${app['title']}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color:
+                                                    AppColors.getTextSecondary(
+                                                      context,
+                                                    ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    ActionChip(
+                                      avatar: Icon(
+                                        ApplicationStatusHelper.getStatusIcon(
+                                          rawStatus,
+                                        ),
+                                        size: 14,
+                                        color: statusColor,
+                                      ),
+                                      label: Text(
+                                        rawStatus,
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      backgroundColor:
+                                          ApplicationStatusHelper.getStatusBgColor(
+                                            rawStatus,
+                                          ),
+                                      side: BorderSide(
+                                        color:
+                                            ApplicationStatusHelper.getStatusBorderColor(
+                                              rawStatus,
+                                            ),
+                                      ),
+                                      onPressed: () => _showStatusDialog(app),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 10),
+                                Divider(
+                                  height: 1,
+                                  color: AppColors.getCardBorder(context),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Contact & Profile Info Rows (Only displayed if available)
+                                if (email.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.email_outlined,
+                                          size: 15,
+                                          color: AppColors.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            email,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.getTextPrimary(
+                                                context,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
+                                if (mobile.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.phone_outlined,
+                                          size: 15,
+                                          color: Colors.green,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            mobile,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.getTextPrimary(
+                                                context,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
+                                if (skills.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(
+                                          Icons.code_outlined,
+                                          size: 15,
+                                          color: Colors.purple,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Skills: $skills',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.getTextPrimary(
+                                                context,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
+                                if (appliedDate.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.calendar_today_outlined,
+                                          size: 15,
+                                          color: Colors.orange,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Applied: $appliedDate',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.getTextSecondary(
+                                              context,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+
+                                // View Resume Action Button (when resumeUrl is available)
+                                if (resumeUrl.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.purple,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      icon: const Icon(
+                                        Icons.description_outlined,
+                                        size: 16,
+                                      ),
+                                      label: const Text(
+                                        'View Resume',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          _openResume(resumeUrl, name),
+                                    ),
+                                  ),
+                                ],
+
+                                const SizedBox(height: 10),
+
+                                // Candidate Score & Recruiter Feedback Display
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Candidate Rank Score Badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF4F46E5,
+                                        ).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(
+                                            0xFF4F46E5,
+                                          ).withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.analytics_outlined,
+                                            size: 14,
+                                            color: Color(0xFF4F46E5),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Candidate Score: ${item.candidateScore.toStringAsFixed(1)}/100',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF4F46E5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Recruiter Feedback / Rate Action Button
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        side: BorderSide(
+                                          color: item.hasFeedback
+                                              ? Colors.amber.shade700
+                                              : AppColors.primary,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      icon: Icon(
+                                        item.hasFeedback
+                                            ? Icons.star
+                                            : Icons.rate_review_outlined,
+                                        size: 14,
+                                        color: item.hasFeedback
+                                            ? Colors.amber.shade700
+                                            : AppColors.primary,
+                                      ),
+                                      label: Text(
+                                        item.hasFeedback
+                                            ? 'Edit Feedback'
+                                            : 'Rate & Feedback',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: item.hasFeedback
+                                              ? Colors.amber.shade700
+                                              : AppColors.primary,
+                                        ),
+                                      ),
+                                      onPressed: () => _showFeedbackDialog(app),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                // Stored Recruiter Feedback Details OR Empty State
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: item.hasFeedback
+                                        ? Colors.amber.withValues(alpha: 0.08)
+                                        : Colors.grey.withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: item.hasFeedback
+                                          ? Colors.amber.withValues(alpha: 0.25)
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                  child: item.hasFeedback
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.star,
+                                                  size: 14,
+                                                  color: Colors.amber,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Recruiter Rating: ${fb!.rating.toStringAsFixed(1)} / 5.0',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.amber,
+                                                  ),
+                                                ),
+                                                const Spacer(),
+                                                if (fb.createdAt.isNotEmpty)
+                                                  Text(
+                                                    fb.createdAt,
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color:
+                                                          AppColors.getTextLight(
+                                                            context,
+                                                          ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            if (fb.feedback.isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Feedback: "${fb.feedback}"',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontStyle: FontStyle.italic,
+                                                  color:
+                                                      AppColors.getTextPrimary(
+                                                        context,
+                                                      ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        )
+                                      : Text(
+                                          'No recruiter feedback yet',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontStyle: FontStyle.italic,
+                                            color: AppColors.getTextSecondary(
+                                              context,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -1658,9 +2365,9 @@ class _CompanyResumesScreenState extends State<CompanyResumesScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Resume URL: $url')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Resume URL: $url')));
       }
     }
   }
@@ -1671,71 +2378,78 @@ class _CompanyResumesScreenState extends State<CompanyResumesScreen> {
       appBar: AppBar(
         title: const Text('Student Resumes'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadResumes,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadResumes),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _resumes.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.description_outlined, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No student resumes available.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                    ],
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.description_outlined,
+                    size: 64,
+                    color: Colors.grey,
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadResumes,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _resumes.length,
-                    itemBuilder: (context, index) {
-                      final res = _resumes[index];
-                      final name = (res['studentName'] ?? res['userId'] ?? 'Student').toString();
-                      final education = (res['education'] ?? 'Computer Science').toString();
-                      final skills = (res['skills'] ?? 'Flutter, Software Engineering').toString();
-                      final resumeUrl = (res['resumeUrl'] ?? '').toString();
+                  SizedBox(height: 16),
+                  Text(
+                    'No student resumes available.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadResumes,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _resumes.length,
+                itemBuilder: (context, index) {
+                  final res = _resumes[index];
+                  final name =
+                      (res['studentName'] ?? res['userId'] ?? 'Student')
+                          .toString();
+                  final education = (res['education'] ?? 'Computer Science')
+                      .toString();
+                  final skills =
+                      (res['skills'] ?? 'Flutter, Software Engineering')
+                          .toString();
+                  final resumeUrl = (res['resumeUrl'] ?? '').toString();
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        elevation: 2,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(14),
-                          leading: const CircleAvatar(
-                            backgroundColor: Colors.purpleAccent,
-                            child: Icon(Icons.description, color: Colors.white),
-                          ),
-                          title: Text(
-                            name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text('$education • $skills'),
-                          trailing: ElevatedButton(
-                            onPressed: () => _openResume(resumeUrl, name),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.purple,
-                            ),
-                            child: const Text(
-                              'View',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(14),
+                      leading: const CircleAvatar(
+                        backgroundColor: Colors.purpleAccent,
+                        child: Icon(Icons.description, color: Colors.white),
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text('$education • $skills'),
+                      trailing: ElevatedButton(
+                        onPressed: () => _openResume(resumeUrl, name),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple,
                         ),
-                      );
-                    },
-                  ),
-                ),
+                        child: const Text(
+                          'View',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
@@ -1752,14 +2466,18 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final session = UserSession();
-    final companyName = session.name?.isNotEmpty == true ? session.name! : 'Company Profile';
-    final companyId = session.userId?.isNotEmpty == true ? session.userId! : 'COM001';
-    final email = session.email?.isNotEmpty == true ? session.email! : 'contact@campus.edu';
+    final companyName = session.name?.isNotEmpty == true
+        ? session.name!
+        : 'Company Profile';
+    final companyId = session.userId?.isNotEmpty == true
+        ? session.userId!
+        : 'COM001';
+    final email = session.email?.isNotEmpty == true
+        ? session.email!
+        : 'contact@campus.edu';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Company Profile'),
-      ),
+      appBar: AppBar(title: const Text('Company Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1781,25 +2499,35 @@ class _CompanyProfileScreenState extends State<CompanyProfileScreen> {
             const SizedBox(height: 24),
             Card(
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.email_outlined, color: Colors.indigo),
+                      leading: const Icon(
+                        Icons.email_outlined,
+                        color: Colors.indigo,
+                      ),
                       title: const Text('Email'),
                       subtitle: Text(email),
                     ),
                     const Divider(),
                     ListTile(
-                      leading: const Icon(Icons.badge_outlined, color: Colors.indigo),
+                      leading: const Icon(
+                        Icons.badge_outlined,
+                        color: Colors.indigo,
+                      ),
                       title: const Text('User ID'),
                       subtitle: Text(companyId),
                     ),
                     const Divider(),
                     ListTile(
-                      leading: const Icon(Icons.security_outlined, color: Colors.indigo),
+                      leading: const Icon(
+                        Icons.security_outlined,
+                        color: Colors.indigo,
+                      ),
                       title: const Text('Role'),
                       subtitle: Text(session.role ?? 'Company / Recruiter'),
                     ),

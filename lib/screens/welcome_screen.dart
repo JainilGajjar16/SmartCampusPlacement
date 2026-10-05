@@ -66,7 +66,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       body: SafeArea(
         child: InkWell(
           onTap: _navigateToLogin, // Allows tapping to skip splash if desired
@@ -90,26 +90,26 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           const SizedBox(height: 36),
 
                           // App Title
-                          const Text(
+                          Text(
                             AppStrings.appName,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
+                              color: AppColors.getTextPrimary(context),
                               letterSpacing: -0.5,
                             ),
                           ),
                           const SizedBox(height: 10),
 
                           // App Subtitle
-                          const Text(
+                          Text(
                             AppStrings.appSubtitle,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary,
+                              color: AppColors.getTextSecondary(context),
                               height: 1.4,
                             ),
                           ),
@@ -122,7 +122,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               borderRadius: BorderRadius.circular(10),
                               child: LinearProgressIndicator(
                                 minHeight: 4,
-                                backgroundColor: AppColors.cardBorder,
+                                backgroundColor: AppColors.getCardBorder(context),
                                 valueColor: const AlwaysStoppedAnimation<Color>(
                                   AppColors.primary,
                                 ),
@@ -146,7 +146,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textLight,
+                    color: AppColors.getTextLight(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../main.dart';
 import '../../models/student_profile.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/app_logo.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Student Campus Placement Dashboard Screen matching Image 3 design.
 class StudentDashboardScreen extends StatefulWidget {
@@ -118,15 +121,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         : userId;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
         title: Row(
-          children: const [
-            AppLogo(size: 34),
-            SizedBox(width: 10),
+          children: [
+            const AppLogo(size: 34),
+            const SizedBox(width: 10),
             Flexible(
               child: Text(
                 AppStrings.appName,
@@ -134,21 +137,22 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.textPrimary,
+                  color: AppColors.getTextPrimary(context),
                 ),
               ),
             ),
           ],
         ),
         actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
           // Notification Bell with Badge Counter
           Stack(
             alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.notifications_outlined,
-                  color: AppColors.textPrimary,
+                  color: AppColors.getTextPrimary(context),
                   size: 24,
                 ),
                 tooltip: AppStrings.notificationsTitle,
@@ -190,9 +194,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       ),
 
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
+        child: FadeSlideTransition(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Hero Welcome Card (Deep Navy Slate Gradient matching Image 3)
@@ -530,8 +535,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
 }
 

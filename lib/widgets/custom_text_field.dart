@@ -37,10 +37,10 @@ class CustomTextField extends StatelessWidget {
       children: [
         Text(
           labelText,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
         ),
         const SizedBox(height: 8),
@@ -52,10 +52,10 @@ class CustomTextField extends StatelessWidget {
           validator: validator,
           onChanged: onChanged,
           readOnly: readOnly,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
           decoration: InputDecoration(
             hintText: hintText,
@@ -64,8 +64,8 @@ class CustomTextField extends StatelessWidget {
               child: Container(
                 width: 32,
                 height: 32,
-                decoration: const BoxDecoration(
-                  color: AppColors.iconChipBg,
+                decoration: BoxDecoration(
+                  color: AppColors.getIconChipBg(context),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

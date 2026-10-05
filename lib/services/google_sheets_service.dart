@@ -822,6 +822,47 @@ class GoogleSheetsService {
     }
   }
 
+  /// Fetches registered student users and profile records for Admin Dashboard.
+  Future<Map<String, dynamic>> getAdminStudents() async {
+    try {
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_admin_students'});
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      if (result['success'] == true && result['students'] is List) {
+        final List rawStudents = result['students'];
+        final List<Map<String, dynamic>> students = rawStudents
+            .map((s) => Map<String, dynamic>.from(s is Map ? s : {}))
+            .toList();
+        return {'success': true, 'students': students};
+      }
+      return {
+        'success': result['success'] ?? false,
+        'message': result['message'] ?? 'Failed to load student records.',
+        'students': <Map<String, dynamic>>[],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'students': <Map<String, dynamic>>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Student records fetch timed out.',
+        'students': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to load student records.',
+        'students': <Map<String, dynamic>>[],
+      };
+    }
+  }
+
   /// Updates a company user account status (Approve / Revoke) in Google Sheets (Phase 14B).
   Future<Map<String, dynamic>> updateCompanyStatus({
     required String userId,
@@ -850,9 +891,9 @@ class GoogleSheetsService {
   /// Fetches most demanded skills statistics for Admin Analytics (Phase 15).
   Future<Map<String, dynamic>> getMostDemandedSkills() async {
     try {
-      final uri = Uri.parse(baseUrl).replace(
-        queryParameters: {'action': 'get_most_demanded_skills'},
-      );
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_most_demanded_skills'});
       final response = await http.get(uri).timeout(_timeout);
       final result = _parseResponse(response);
       if (result['success'] == true && result['skills'] is List) {
@@ -891,22 +932,16 @@ class GoogleSheetsService {
   /// Fetches student readiness distribution statistics for Admin Analytics (Phase 15).
   Future<Map<String, dynamic>> getReadinessDistribution() async {
     try {
-      final uri = Uri.parse(baseUrl).replace(
-        queryParameters: {'action': 'get_readiness_distribution'},
-      );
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_readiness_distribution'});
       final response = await http.get(uri).timeout(_timeout);
       final result = _parseResponse(response);
       return result;
     } on SocketException {
-      return {
-        'success': false,
-        'message': AppStrings.networkError,
-      };
+      return {'success': false, 'message': AppStrings.networkError};
     } on TimeoutException {
-      return {
-        'success': false,
-        'message': 'Request timed out.',
-      };
+      return {'success': false, 'message': 'Request timed out.'};
     } catch (e) {
       return {
         'success': false,
@@ -918,9 +953,9 @@ class GoogleSheetsService {
   /// Fetches top recommended jobs statistics for Admin Analytics (Phase 15).
   Future<Map<String, dynamic>> getTopRecommendedJobs() async {
     try {
-      final uri = Uri.parse(baseUrl).replace(
-        queryParameters: {'action': 'get_top_recommended_jobs'},
-      );
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_top_recommended_jobs'});
       final response = await http.get(uri).timeout(_timeout);
       final result = _parseResponse(response);
       final listData = result['recommendedJobs'] ?? result['jobs'];
@@ -960,9 +995,9 @@ class GoogleSheetsService {
   /// Fetches placement trends over time for Admin Analytics (Phase 15).
   Future<Map<String, dynamic>> getPlacementTrends() async {
     try {
-      final uri = Uri.parse(baseUrl).replace(
-        queryParameters: {'action': 'get_placement_trends'},
-      );
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_placement_trends'});
       final response = await http.get(uri).timeout(_timeout);
       final result = _parseResponse(response);
       if (result['success'] == true && result['trends'] is List) {
@@ -995,6 +1030,141 @@ class GoogleSheetsService {
         'message': 'Failed to load placement trends.',
         'trends': <Map<String, dynamic>>[],
       };
+    }
+  }
+
+  /// Sends a system broadcast announcement to target audience (Phase 16).
+  /// Sends action=send_broadcast, title, message, audience, and createdBy.
+  Future<Map<String, dynamic>> sendBroadcast({
+    required String title,
+    required String message,
+    String audience = 'all',
+    String createdBy = 'Admin',
+  }) async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'send_broadcast',
+          'title': title.trim(),
+          'message': message.trim(),
+          'audience': audience.trim(),
+          'createdBy': createdBy.trim(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Broadcast request timed out. Please try again.',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred while sending broadcast.',
+      };
+    }
+  }
+
+  /// Fetches list of system broadcast announcements (Phase 16).
+  /// Sends action=get_broadcasts.
+  Future<Map<String, dynamic>> getBroadcasts() async {
+    try {
+      final uri = Uri.parse(
+        baseUrl,
+      ).replace(queryParameters: {'action': 'get_broadcasts'});
+
+      final response = await http.get(uri).timeout(_timeout);
+      final result = _parseResponse(response);
+      if (result['success'] == true && result['broadcasts'] is List) {
+        final List raw = result['broadcasts'];
+        final List<Map<String, dynamic>> broadcasts =
+            raw.map((b) => Map<String, dynamic>.from(b is Map ? b : {})).toList();
+        return {'success': true, 'broadcasts': broadcasts};
+      }
+      return {
+        'success': result['success'] ?? false,
+        'message': result['message'] ?? 'Failed to load announcements.',
+        'broadcasts': <Map<String, dynamic>>[],
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'message': AppStrings.networkError,
+        'broadcasts': <Map<String, dynamic>>[],
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'message': 'Fetching announcements timed out.',
+        'broadcasts': <Map<String, dynamic>>[],
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred while loading announcements.',
+        'broadcasts': <Map<String, dynamic>>[],
+      };
+    }
+  }
+
+  /// Deletes a student record from the Google Sheets backend (Phase 16).
+  Future<Map<String, dynamic>> deleteStudent(String userId) async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'delete_student',
+          'userId': userId.trim(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Delete student request timed out.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to delete student record.'};
+    }
+  }
+
+  /// Updates student record details in Google Sheets backend (Phase 16).
+  Future<Map<String, dynamic>> updateStudent({
+    required String userId,
+    String? name,
+    String? email,
+    String? mobile,
+    String? status,
+    String? education,
+    String? semester,
+    String? skills,
+  }) async {
+    try {
+      final query = <String, String>{
+        'action': 'update_student',
+        'userId': userId.trim(),
+      };
+      if (name != null) query['name'] = name.trim();
+      if (email != null) query['email'] = email.trim();
+      if (mobile != null) query['mobile'] = mobile.trim();
+      if (status != null) query['status'] = status.trim();
+      if (education != null) query['education'] = education.trim();
+      if (semester != null) query['semester'] = semester.trim();
+      if (skills != null) query['skills'] = skills.trim();
+
+      final uri = Uri.parse(baseUrl).replace(queryParameters: query);
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Update student request timed out.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to update student record.'};
     }
   }
 

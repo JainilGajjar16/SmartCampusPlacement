@@ -22,6 +22,10 @@
  *      return handleGetRecruiterFeedback(ss, e.parameter);
  *    } else if (action === 'get_admin_statistics') {
  *      return handleGetAdminStatistics(ss, e.parameter);
+ *    } else if (action === 'get_admin_students') {
+ *      return handleGetAdminStudents(ss, e.parameter);
+ *    } else if (action === 'get_admin_companies') {
+ *      return handleGetAdminCompanies(ss, e.parameter);
  *    } else if (action === 'get_most_demanded_skills') {
  *      return handleGetMostDemandedSkills(ss, e.parameter);
  *    } else if (action === 'get_readiness_distribution') {
@@ -30,6 +34,14 @@
  *      return handleGetTopRecommendedJobs(ss, e.parameter);
  *    } else if (action === 'get_placement_trends') {
  *      return handleGetPlacementTrends(ss, e.parameter);
+ *    } else if (action === 'send_broadcast' || action === 'send_system_broadcast') {
+ *      return handleSendBroadcast(ss, e.parameter);
+ *    } else if (action === 'get_broadcasts' || action === 'get_system_broadcasts') {
+ *      return handleGetBroadcasts(ss, e.parameter);
+ *    } else if (action === 'delete_student') {
+ *      return handleDeleteStudent(ss, e.parameter);
+ *    } else if (action === 'update_student') {
+ *      return handleUpdateStudent(ss, e.parameter);
  *    }
  * 
  * 4. Inside your existing applyForJob(e) function, after appending the new application row,
@@ -637,7 +649,9 @@ function handleGetCompanyApplications(ss, params) {
               education: getProfVal(pRow, ["education", "branch", "degree"]),
               skills: getProfVal(pRow, ["skills"]),
               resumeUrl: getProfVal(pRow, ["resumeurl", "resume url", "resume"]),
-              cgpa: getProfVal(pRow, ["cgpa", "marks"])
+              cgpa: getProfVal(pRow, ["cgpa", "marks"]),
+              email: getProfVal(pRow, ["email", "emailaddress"]),
+              mobile: getProfVal(pRow, ["mobile", "phone", "contact"])
             };
           }
         }
@@ -669,6 +683,12 @@ function handleGetCompanyApplications(ss, params) {
             }
             if (!profilesMap[uLower].name) {
               profilesMap[uLower].name = getUserVal(uRow, ["name", "fullname"]);
+            }
+            if (!profilesMap[uLower].email) {
+              profilesMap[uLower].email = getUserVal(uRow, ["email", "emailaddress"]);
+            }
+            if (!profilesMap[uLower].mobile) {
+              profilesMap[uLower].mobile = getUserVal(uRow, ["mobile", "phone", "contact"]);
             }
           }
         }
@@ -724,6 +744,8 @@ function handleGetCompanyApplications(ss, params) {
           jobId: jobId,
           userId: userId,
           studentName: profDetails.name || userId,
+          email: profDetails.email || "",
+          mobile: profDetails.mobile || "",
           appliedDate: appliedDate,
           status: status || "Applied",
           title: jobDetails.title || "",
@@ -1673,7 +1695,492 @@ function handleGetPlacementTrends(ss, params) {
   }
 }
 
+// Phase 14 Admin Students Handler
+function handleGetAdminStudents(ss, params) {
+  try {
+    var usersSheet = ss.getSheetByName("Users");
+    if (!usersSheet) {
+      return jsonResponse({ success: true, students: [] });
+    }
+    var uData = usersSheet.getDataRange().getValues();
+    if (uData.length <= 1) {
+      return jsonResponse({ success: true, students: [] });
+    }
+    var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var userIdCol = uHeaders.indexOf("user id");
+    if (userIdCol === -1) userIdCol = uHeaders.indexOf("userid");
+    if (userIdCol === -1) userIdCol = 0;
+
+    var nameCol = uHeaders.indexOf("name");
+    if (nameCol === -1) nameCol = uHeaders.indexOf("fullname");
+    if (nameCol === -1) nameCol = 1;
+
+    var emailCol = uHeaders.indexOf("email");
+    if (emailCol === -1) emailCol = uHeaders.indexOf("emailaddress");
+    if (emailCol === -1) emailCol = 2;
+
+    var mobileCol = uHeaders.indexOf("mobile");
+    if (mobileCol === -1) mobileCol = uHeaders.indexOf("phone");
+    if (mobileCol === -1) mobileCol = 3;
+
+    var roleCol = uHeaders.indexOf("role");
+    if (roleCol === -1) roleCol = uHeaders.indexOf("user role");
+    if (roleCol === -1) roleCol = uHeaders.indexOf("userrole");
+    if (roleCol === -1) roleCol = uHeaders.indexOf("role name");
+    if (roleCol === -1) roleCol = 4;
+
+    var statusCol = uHeaders.indexOf("status");
+    if (statusCol === -1) statusCol = uHeaders.indexOf("user status");
+    if (statusCol === -1) statusCol = 5;
+
+    var profMap = {};
+    var profSheet = ss.getSheetByName("StudentProfiles");
+    if (profSheet) {
+      var pData = profSheet.getDataRange().getValues();
+      if (pData.length > 1) {
+        var pHeaders = pData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var getPVal = function(pRow, names) {
+          for (var k = 0; k < names.length; k++) {
+            var idx = pHeaders.indexOf(names[k].toLowerCase());
+            if (idx !== -1 && pRow[idx] !== undefined && pRow[idx] !== null) return pRow[idx].toString().trim();
+          }
+          return "";
+        };
+        for (var p = 1; p < pData.length; p++) {
+          var pRow = pData[p];
+          var pId = getPVal(pRow, ["user id", "userid", "student id"]);
+          if (pId) {
+            profMap[pId.toLowerCase()] = {
+              name: getPVal(pRow, ["name", "fullname", "student name"]),
+              email: getPVal(pRow, ["email", "emailaddress"]),
+              education: getPVal(pRow, ["education", "branch", "degree", "course"]),
+              skills: getPVal(pRow, ["skills"]),
+              mobile: getPVal(pRow, ["mobile", "phone", "contact"]),
+              cgpa: getPVal(pRow, ["cgpa", "marks"]),
+              semester: getPVal(pRow, ["semester", "sem", "year"]),
+              resumeUrl: getPVal(pRow, ["resumeurl", "resume url", "resume"])
+            };
+          }
+        }
+      }
+    }
+
+    var students = [];
+    var seenUserIds = {};
+
+    for (var i = 1; i < uData.length; i++) {
+      var row = uData[i];
+      if (!row[0] && !row[1]) continue;
+
+      var uId = (userIdCol !== -1 && row[userIdCol] !== undefined && row[userIdCol] !== null)
+        ? String(row[userIdCol]).trim()
+        : "";
+      if (!uId) continue;
+
+      var uIdLower = uId.toLowerCase();
+      if (seenUserIds[uIdLower]) continue;
+
+      var rRole = (roleCol !== -1 && row[roleCol] !== undefined && row[roleCol] !== null)
+        ? String(row[roleCol]).trim().toLowerCase()
+        : "";
+
+      if (rRole === "student" || (rRole === "" && uId.toUpperCase().indexOf("STU") !== -1)) {
+        seenUserIds[uIdLower] = true;
+
+        var uName = (nameCol !== -1 && row[nameCol] !== undefined && row[nameCol] !== null) ? String(row[nameCol]).trim() : "";
+        var uEmail = (emailCol !== -1 && row[emailCol] !== undefined && row[emailCol] !== null) ? String(row[emailCol]).trim() : "";
+        var uMobile = (mobileCol !== -1 && row[mobileCol] !== undefined && row[mobileCol] !== null) ? String(row[mobileCol]).trim() : "";
+        var uStatus = (statusCol !== -1 && row[statusCol] !== undefined && row[statusCol] !== null) ? String(row[statusCol]).trim() : "Active";
+
+        var prof = profMap[uIdLower] || {};
+
+        students.push({
+          userId: uId,
+          studentId: uId,
+          name: uName || prof.name || uId,
+          email: uEmail || prof.email || "",
+          mobile: uMobile || prof.mobile || "",
+          education: prof.education || "",
+          course: prof.education || "",
+          semester: prof.semester || "",
+          skills: prof.skills || "",
+          cgpa: prof.cgpa || "",
+          resumeUrl: prof.resumeUrl || "",
+          status: uStatus || "Active"
+        });
+      }
+    }
+    return jsonResponse({ success: true, students: students });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Error loading admin students: " + err.toString() });
+  }
+}
 
 
+// ==========================================================
+// PHASE 16 - SYSTEM BROADCAST & STUDENT MANAGEMENT HANDLERS
+// ==========================================================
 
+function handleSendBroadcast(spreadsheet, params) {
+  try {
+    var title = String(params.title || "").trim();
+    var message = String(params.message || "").trim();
+    var audience = String(params.audience || params.targetAudience || "all").trim().toLowerCase();
+    var createdBy = String(params.createdBy || params.author || "Admin").trim();
 
+    if (!title || !message) {
+      return jsonResponse({
+        success: false,
+        message: "Title and message are required for broadcast."
+      });
+    }
+
+    var sheet = spreadsheet.getSheetByName("Announcements");
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet("Announcements");
+      sheet.appendRow([
+        "Broadcast ID",
+        "Title",
+        "Message",
+        "Audience",
+        "Created By",
+        "Date",
+        "Status"
+      ]);
+    }
+
+    var broadcastId = "BC" + new Date().getTime();
+    var tz = Session.getScriptTimeZone() || "GMT";
+    var dateStr = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm");
+
+    sheet.appendRow([
+      broadcastId,
+      title,
+      message,
+      audience,
+      createdBy,
+      dateStr,
+      "Active"
+    ]);
+
+    // Push individual notifications to targeted users in Notifications sheet
+    try {
+      var usersSheet = spreadsheet.getSheetByName("Users");
+      if (usersSheet) {
+        var uData = usersSheet.getDataRange().getValues();
+        if (uData.length > 1) {
+          var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+          var uIdCol = uHeaders.indexOf("user id");
+          if (uIdCol === -1) uIdCol = uHeaders.indexOf("userid");
+          if (uIdCol === -1) uIdCol = 0;
+
+          var roleCol = uHeaders.indexOf("role");
+          if (roleCol === -1) roleCol = uHeaders.indexOf("user role");
+          if (roleCol === -1) roleCol = 4;
+
+          for (var i = 1; i < uData.length; i++) {
+            var row = uData[i];
+            var uId = row[uIdCol] ? String(row[uIdCol]).trim() : "";
+            var uRole = (roleCol !== -1 && row[roleCol]) ? String(row[roleCol]).trim().toLowerCase() : "";
+            if (!uId) continue;
+
+            var matches = false;
+            if (audience === "all" || audience === "" || audience === "all users") {
+              matches = true;
+            } else if ((audience === "student" || audience === "students") && (uRole === "student" || uRole === "student user" || uId.toUpperCase().indexOf("STU") !== -1)) {
+              matches = true;
+            } else if ((audience === "company" || audience === "companies" || audience === "recruiter" || audience === "recruiters") && (uRole === "company" || uRole === "recruiter" || uId.toUpperCase().indexOf("COM") !== -1)) {
+              matches = true;
+            }
+
+            if (matches) {
+              addNotification(spreadsheet, uId, "Broadcast: " + title, message, "broadcast");
+            }
+          }
+        }
+      }
+    } catch (notifErr) {
+      Logger.log("Failed to dispatch notifications for broadcast: " + notifErr.toString());
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Broadcast announcement sent successfully.",
+      broadcastId: broadcastId
+    });
+
+  } catch (error) {
+    return jsonResponse({
+      success: false,
+      message: "Failed to send broadcast: " + error.toString()
+    });
+  }
+}
+
+function handleGetBroadcasts(spreadsheet, params) {
+  try {
+    var sheet = spreadsheet.getSheetByName("Announcements");
+    if (!sheet) {
+      return jsonResponse({
+        success: true,
+        broadcasts: []
+      });
+    }
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return jsonResponse({
+        success: true,
+        broadcasts: []
+      });
+    }
+
+    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+    var broadcasts = [];
+
+    for (var i = data.length - 1; i >= 1; i--) {
+      var row = data[i];
+      var getVal = function (names) {
+        for (var k = 0; k < names.length; k++) {
+          var idx = headers.indexOf(names[k].toLowerCase());
+          if (idx !== -1 && row[idx] !== undefined && row[idx] !== null) {
+            return String(row[idx]).trim();
+          }
+        }
+        return "";
+      };
+
+      var broadcastId = getVal(["broadcast id", "broadcastid", "id"]);
+      var title = getVal(["title"]);
+      var message = getVal(["message"]);
+      var audience = getVal(["audience", "targetaudience"]);
+      var createdBy = getVal(["created by", "createdby", "author"]);
+      var dateStr = getVal(["date", "createdat", "timestamp"]);
+      var status = getVal(["status"]);
+
+      if (title || message) {
+        broadcasts.push({
+          broadcastId: broadcastId || ("BC" + i),
+          title: title,
+          message: message,
+          audience: audience || "all",
+          createdBy: createdBy || "Admin",
+          date: dateStr,
+          status: status || "Active"
+        });
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      broadcasts: broadcasts
+    });
+
+  } catch (error) {
+    return jsonResponse({
+      success: false,
+      message: "Failed to fetch broadcasts: " + error.toString()
+    });
+  }
+}
+
+function handleDeleteStudent(spreadsheet, params) {
+  try {
+    var userId = String(params.userId || params.studentId || "").trim();
+    if (!userId) {
+      return jsonResponse({
+        success: false,
+        message: "Student User ID is required for deletion."
+      });
+    }
+
+    var deletedUsers = 0;
+    var deletedProfiles = 0;
+
+    var usersSheet = spreadsheet.getSheetByName("Users");
+    if (usersSheet) {
+      var uData = usersSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var uIdCol = uHeaders.indexOf("user id");
+        if (uIdCol === -1) uIdCol = uHeaders.indexOf("userid");
+        if (uIdCol === -1) uIdCol = uHeaders.indexOf("student id");
+        if (uIdCol === -1) uIdCol = 0;
+
+        for (var i = uData.length - 1; i >= 1; i--) {
+          if (uData[i][uIdCol] && String(uData[i][uIdCol]).trim().toLowerCase() === userId.toLowerCase()) {
+            usersSheet.deleteRow(i + 1);
+            deletedUsers++;
+          }
+        }
+      }
+    }
+
+    var profSheet = spreadsheet.getSheetByName("StudentProfiles");
+    if (profSheet) {
+      var pData = profSheet.getDataRange().getValues();
+      if (pData.length > 1) {
+        var pHeaders = pData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var pIdCol = pHeaders.indexOf("user id");
+        if (pIdCol === -1) pIdCol = pHeaders.indexOf("userid");
+        if (pIdCol === -1) pIdCol = pHeaders.indexOf("student id");
+        if (pIdCol === -1) pIdCol = 0;
+
+        for (var k = pData.length - 1; k >= 1; k--) {
+          if (pData[k][pIdCol] && String(pData[k][pIdCol]).trim().toLowerCase() === userId.toLowerCase()) {
+            profSheet.deleteRow(k + 1);
+            deletedProfiles++;
+          }
+        }
+      }
+    }
+
+    if (deletedUsers === 0 && deletedProfiles === 0) {
+      return jsonResponse({
+        success: false,
+        message: "Student record (" + userId + ") was not found."
+      });
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Student record (" + userId + ") deleted successfully."
+    });
+
+  } catch (error) {
+    return jsonResponse({
+      success: false,
+      message: "Failed to delete student: " + error.toString()
+    });
+  }
+}
+
+function handleUpdateStudent(spreadsheet, params) {
+  try {
+    var userId = String(params.userId || params.studentId || "").trim();
+    if (!userId) {
+      return jsonResponse({
+        success: false,
+        message: "Student User ID is required for update."
+      });
+    }
+
+    var name = params.name !== undefined ? String(params.name).trim() : null;
+    var email = params.email !== undefined ? String(params.email).trim() : null;
+    var mobile = params.mobile !== undefined ? String(params.mobile).trim() : null;
+    var status = params.status !== undefined ? String(params.status).trim() : null;
+    var education = params.education !== undefined ? String(params.education).trim() : null;
+    var semester = params.semester !== undefined ? String(params.semester).trim() : null;
+    var skills = params.skills !== undefined ? String(params.skills).trim() : null;
+
+    var updatedInUsers = false;
+    var usersSheet = spreadsheet.getSheetByName("Users");
+    if (usersSheet) {
+      var uData = usersSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+        var uIdCol = uHeaders.indexOf("user id");
+        if (uIdCol === -1) uIdCol = uHeaders.indexOf("userid");
+        if (uIdCol === -1) uIdCol = uHeaders.indexOf("student id");
+        if (uIdCol === -1) uIdCol = 0;
+
+        var nameCol = uHeaders.indexOf("name");
+        if (nameCol === -1) nameCol = uHeaders.indexOf("fullname");
+        if (nameCol === -1) nameCol = 1;
+
+        var emailCol = uHeaders.indexOf("email");
+        if (emailCol === -1) emailCol = uHeaders.indexOf("emailaddress");
+        if (emailCol === -1) emailCol = 2;
+
+        var mobileCol = uHeaders.indexOf("mobile");
+        if (mobileCol === -1) mobileCol = uHeaders.indexOf("phone");
+        if (mobileCol === -1) mobileCol = 3;
+
+        var statusCol = uHeaders.indexOf("status");
+        if (statusCol === -1) statusCol = uHeaders.indexOf("user status");
+        if (statusCol === -1) statusCol = 5;
+
+        for (var i = 1; i < uData.length; i++) {
+          if (uData[i][uIdCol] && String(uData[i][uIdCol]).trim().toLowerCase() === userId.toLowerCase()) {
+            if (name !== null) usersSheet.getRange(i + 1, nameCol + 1).setValue(name);
+            if (email !== null) usersSheet.getRange(i + 1, emailCol + 1).setValue(email);
+            if (mobile !== null) usersSheet.getRange(i + 1, mobileCol + 1).setValue(mobile);
+            if (status !== null) usersSheet.getRange(i + 1, statusCol + 1).setValue(status);
+            updatedInUsers = true;
+            break;
+          }
+        }
+      }
+    }
+
+    var updatedInProfiles = false;
+    var profSheet = spreadsheet.getSheetByName("StudentProfiles");
+    if (profSheet) {
+      var pData = profSheet.getDataRange().getValues();
+      if (pData.length > 1) {
+        var pHeaders = pData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var pIdCol = pHeaders.indexOf("user id");
+        if (pIdCol === -1) pIdCol = pHeaders.indexOf("userid");
+        if (pIdCol === -1) pIdCol = pHeaders.indexOf("student id");
+        if (pIdCol === -1) pIdCol = 0;
+
+        var pNameCol = pHeaders.indexOf("name");
+        if (pNameCol === -1) pNameCol = pHeaders.indexOf("fullname");
+        if (pNameCol === -1) pNameCol = 1;
+
+        var pEmailCol = pHeaders.indexOf("email");
+        if (pEmailCol === -1) pEmailCol = pHeaders.indexOf("emailaddress");
+        if (pEmailCol === -1) pEmailCol = 2;
+
+        var pMobileCol = pHeaders.indexOf("mobile");
+        if (pMobileCol === -1) pMobileCol = pHeaders.indexOf("phone");
+        if (pMobileCol === -1) pMobileCol = 3;
+
+        var pEduCol = pHeaders.indexOf("education");
+        if (pEduCol === -1) pEduCol = pHeaders.indexOf("course");
+        if (pEduCol === -1) pEduCol = 4;
+
+        var pSemCol = pHeaders.indexOf("semester");
+        if (pSemCol === -1) pSemCol = pHeaders.indexOf("sem");
+        if (pSemCol === -1) pSemCol = 5;
+
+        var pSkillsCol = pHeaders.indexOf("skills");
+        if (pSkillsCol === -1) pSkillsCol = pHeaders.indexOf("skill");
+        if (pSkillsCol === -1) pSkillsCol = 6;
+
+        for (var k = 1; k < pData.length; k++) {
+          if (pData[k][pIdCol] && String(pData[k][pIdCol]).trim().toLowerCase() === userId.toLowerCase()) {
+            if (name !== null) profSheet.getRange(k + 1, pNameCol + 1).setValue(name);
+            if (email !== null) profSheet.getRange(k + 1, pEmailCol + 1).setValue(email);
+            if (mobile !== null) profSheet.getRange(k + 1, pMobileCol + 1).setValue(mobile);
+            if (education !== null && pEduCol !== -1) profSheet.getRange(k + 1, pEduCol + 1).setValue(education);
+            if (semester !== null && pSemCol !== -1) profSheet.getRange(k + 1, pSemCol + 1).setValue(semester);
+            if (skills !== null && pSkillsCol !== -1) profSheet.getRange(k + 1, pSkillsCol + 1).setValue(skills);
+            updatedInProfiles = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!updatedInUsers && !updatedInProfiles) {
+      return jsonResponse({
+        success: false,
+        message: "Student record (" + userId + ") was not found."
+      });
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Student record (" + userId + ") updated successfully."
+    });
+
+  } catch (error) {
+    return jsonResponse({
+      success: false,
+      message: "Failed to update student: " + error.toString()
+    });
+  }
+}

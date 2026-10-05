@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/app_snackbar.dart';
+import '../../main.dart';
 import '../../models/notification_item.dart';
 import '../../models/user_session.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Screen displaying notifications for the logged-in student (Phase 8).
 class NotificationsScreen extends StatefulWidget {
@@ -149,22 +152,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.getTextPrimary(context)),
           onPressed: () => Navigator.pop(context, _unreadCount),
         ),
         title: Row(
           children: [
-            const Text(
+            Text(
               AppStrings.notificationsTitle,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
+                color: AppColors.getTextPrimary(context),
               ),
             ),
             if (_unreadCount > 0) ...[
@@ -188,6 +191,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
         actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
           if (_unreadCount > 0)
             TextButton.icon(
               onPressed: _markAllAsRead,
@@ -204,10 +208,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchNotifications,
-          color: AppColors.primary,
-          child: _buildBody(),
+        child: FadeSlideTransition(
+          child: RefreshIndicator(
+            onRefresh: _fetchNotifications,
+            color: AppColors.primary,
+            child: _buildBody(),
+          ),
         ),
       ),
     );

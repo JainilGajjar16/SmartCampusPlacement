@@ -3,11 +3,14 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/app_validators.dart';
+import '../../main.dart';
 import '../../models/student_profile.dart';
 import '../../models/user_session.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Student Profile Screen matching exact design styling from screenshots (Images 4 & 5).
 class StudentProfileScreen extends StatefulWidget {
@@ -183,26 +186,31 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: AppColors.getTextPrimary(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           AppStrings.profileTitle,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
         ),
+        actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
+        ],
         centerTitle: false,
       ),
       body: SafeArea(
-        child: _buildBody(),
+        child: FadeSlideTransition(
+          child: _buildBody(),
+        ),
       ),
     );
   }

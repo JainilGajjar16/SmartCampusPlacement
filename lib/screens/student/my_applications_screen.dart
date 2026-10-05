@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/application_status_helper.dart';
+import '../../main.dart';
 import '../../models/application.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/application_timeline_widget.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Screen displaying the list of job applications submitted by the logged-in student (Phase 11 ATS).
 class MyApplicationsScreen extends StatefulWidget {
@@ -319,28 +322,33 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.getTextPrimary(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           AppStrings.myApplications,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
         ),
+        actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
+        ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchApplications,
-          color: AppColors.primary,
-          child: _buildBody(),
+        child: FadeSlideTransition(
+          child: RefreshIndicator(
+            onRefresh: _fetchApplications,
+            color: AppColors.primary,
+            child: _buildBody(),
+          ),
         ),
       ),
     );

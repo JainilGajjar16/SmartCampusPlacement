@@ -3,12 +3,15 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/placement_readiness_calculator.dart';
+import '../../main.dart';
 import '../../models/job.dart';
 import '../../models/student_profile.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Screen displaying Student Placement Readiness & Job Recommendation Insights (Phase 12).
 class PlacementReadinessScreen extends StatefulWidget {
@@ -122,29 +125,34 @@ class _PlacementReadinessScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.getTextPrimary(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           AppStrings.placementReadinessTitle,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
         ),
+        actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
+        ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadData,
-          color: AppColors.primary,
-          child: _buildBody(),
+        child: FadeSlideTransition(
+          child: RefreshIndicator(
+            onRefresh: _loadData,
+            color: AppColors.primary,
+            child: _buildBody(),
+          ),
         ),
       ),
     );

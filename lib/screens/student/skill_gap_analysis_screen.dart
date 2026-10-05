@@ -3,6 +3,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/app_snackbar.dart';
 import '../../core/utils/skill_gap_analyzer.dart';
+import '../../main.dart';
 import '../../models/job.dart';
 import '../../models/skill_gap_result.dart';
 import '../../models/student_profile.dart';
@@ -10,6 +11,8 @@ import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Screen displaying the Job-Aware Skill Gap Analysis report comparing
 /// a target job's required skills against a student's profile competencies.
@@ -159,26 +162,31 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.getTextPrimary(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           AppStrings.skillGapAnalysisTitle,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
         ),
+        actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
+        ],
       ),
       body: SafeArea(
-        child: _buildBody(),
+        child: FadeSlideTransition(
+          child: _buildBody(),
+        ),
       ),
     );
   }
@@ -595,9 +603,9 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.getSurface(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: AppColors.getCardBorder(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -619,10 +627,10 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
               const SizedBox(width: 10),
               Text(
                 'Target Skill: ${rec.skillName}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: AppColors.getTextPrimary(context),
                 ),
               ),
             ],
@@ -630,12 +638,12 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
           const SizedBox(height: 12),
 
           // Key Topics
-          const Text(
+          Text(
             'Key Concepts to Learn:',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: AppColors.textSecondary,
+              color: AppColors.getTextSecondary(context),
             ),
           ),
           const SizedBox(height: 6),
@@ -651,8 +659,8 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
                     Expanded(
                       child: Text(
                         topic,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.textPrimary),
+                        style: TextStyle(
+                            fontSize: 12, color: AppColors.getTextPrimary(context)),
                       ),
                     ),
                   ],
@@ -665,31 +673,31 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.inputBg,
+              color: AppColors.getInputBg(context),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: const [
+                  children: [
                     Icon(Icons.menu_book_rounded,
-                        size: 14, color: AppColors.textSecondary),
-                    SizedBox(width: 6),
+                        size: 14, color: AppColors.getTextSecondary(context)),
+                    const SizedBox(width: 6),
                     Text(
                       'Resources:',
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textSecondary),
+                          color: AppColors.getTextSecondary(context)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   rec.learningResources,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 11, color: AppColors.getTextPrimary(context)),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -709,8 +717,8 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
                 const SizedBox(height: 2),
                 Text(
                   rec.projectIdea,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 11, color: AppColors.getTextPrimary(context)),
                 ),
               ],
             ),

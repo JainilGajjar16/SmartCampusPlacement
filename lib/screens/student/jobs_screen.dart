@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/app_snackbar.dart';
+import '../../main.dart';
 import '../../models/job.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
 import '../../widgets/custom_button.dart';
+import '../../widgets/fade_slide_transition.dart';
+import '../../widgets/theme_toggle_button.dart';
 
 /// Screen displaying the list of active campus placement and internship jobs
 /// with search, filtering, sorting, and reset capabilities.
@@ -519,30 +522,31 @@ class _JobsScreenState extends State<JobsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.getBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.getTextPrimary(context)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           AppStrings.availableJobs,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w900,
-            color: AppColors.textPrimary,
+            color: AppColors.getTextPrimary(context),
           ),
         ),
         actions: [
+          ThemeToggleButton(themeProvider: globalThemeProvider),
           // Filter Icon Action Button with Active Badge Counter
           Stack(
             alignment: Alignment.center,
             children: [
               IconButton(
-                icon: const Icon(Icons.tune_rounded, color: AppColors.textPrimary),
+                icon: Icon(Icons.tune_rounded, color: AppColors.getTextPrimary(context)),
                 onPressed: _showFilterBottomSheet,
               ),
               if (_hasActiveFilters)
@@ -575,18 +579,20 @@ class _JobsScreenState extends State<JobsScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Search & Active Filter Bar
-            _buildSearchAndFilterHeader(),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _fetchJobs,
-                color: AppColors.primary,
-                child: _buildBody(),
+        child: FadeSlideTransition(
+          child: Column(
+            children: [
+              // Search & Active Filter Bar
+              _buildSearchAndFilterHeader(),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _fetchJobs,
+                  color: AppColors.primary,
+                  child: _buildBody(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

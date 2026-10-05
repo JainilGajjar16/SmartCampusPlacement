@@ -20,14 +20,16 @@ import 'package:smart_campus_placement/screens/student/notifications_screen.dart
 import 'package:smart_campus_placement/core/constants/app_strings.dart';
 import 'package:smart_campus_placement/core/utils/app_validators.dart';
 import 'package:smart_campus_placement/screens/dashboard/company_dashboard_screen.dart';
+import 'package:smart_campus_placement/screens/dashboard/admin_dashboard_screen.dart';
 import 'package:smart_campus_placement/services/google_sheets_service.dart';
 import 'package:smart_campus_placement/models/recruiter_feedback.dart';
 import 'package:smart_campus_placement/core/utils/candidate_ranking_calculator.dart';
 import 'package:smart_campus_placement/widgets/analytics_reports_widget.dart';
 
 void main() {
-  testWidgets('Full Auth Navigation Flow Smoke Test',
-      (WidgetTester tester) async {
+  testWidgets('Full Auth Navigation Flow Smoke Test', (
+    WidgetTester tester,
+  ) async {
     // 1. Build app and verify Welcome / Splash Screen
     await tester.pumpWidget(const SmartCampusApp());
     expect(find.text('Smart Campus Placement'), findsOneWidget);
@@ -47,7 +49,10 @@ void main() {
 
     // 4. Verify Forgot Password Screen renders properly
     expect(find.text('Forgot Password?'), findsWidgets);
-    expect(find.text('Verify your account to reset your password.'), findsOneWidget);
+    expect(
+      find.text('Verify your account to reset your password.'),
+      findsOneWidget,
+    );
     expect(find.text('Verify Account'), findsOneWidget);
 
     // 5. Return to Login
@@ -69,21 +74,19 @@ void main() {
     expect(find.text('HR'), findsOneWidget);
   });
 
-  testWidgets('Forgot Password Screen direct render test',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: ForgotPasswordScreen(),
-      ),
-    );
+  testWidgets('Forgot Password Screen direct render test', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: ForgotPasswordScreen()));
     expect(find.text('Forgot Password?'), findsOneWidget);
     expect(find.text('User ID'), findsOneWidget);
     expect(find.text('Email Address'), findsOneWidget);
     expect(find.text('Verify Account'), findsOneWidget);
   });
 
-  testWidgets('Reset Password Screen direct render test',
-      (WidgetTester tester) async {
+  testWidgets('Reset Password Screen direct render test', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: ResetPasswordScreen(
@@ -99,8 +102,9 @@ void main() {
     expect(find.text('Confirm New Password'), findsOneWidget);
   });
 
-  testWidgets('Authenticated User Session Dashboard Test',
-      (WidgetTester tester) async {
+  testWidgets('Authenticated User Session Dashboard Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'test_student',
       role: 'Student',
@@ -222,19 +226,22 @@ void main() {
     expect(searchFlutter.first.jobId, equals('JOB001'));
 
     // Location filtering
-    final bangaloreJobs =
-        jobs.where((j) => j.location.toLowerCase() == 'bangalore').toList();
+    final bangaloreJobs = jobs
+        .where((j) => j.location.toLowerCase() == 'bangalore')
+        .toList();
     expect(bangaloreJobs.length, equals(2));
 
     // Job type filtering
-    final internships =
-        jobs.where((j) => j.jobType.toLowerCase() == 'internship').toList();
+    final internships = jobs
+        .where((j) => j.jobType.toLowerCase() == 'internship')
+        .toList();
     expect(internships.length, equals(1));
     expect(internships.first.company, equals('Adobe'));
 
     // Skill filtering
-    final javaJobs =
-        jobs.where((j) => j.skills.toLowerCase().contains('java')).toList();
+    final javaJobs = jobs
+        .where((j) => j.skills.toLowerCase().contains('java'))
+        .toList();
     expect(javaJobs.length, equals(1));
     expect(javaJobs.first.company, equals('Microsoft'));
   });
@@ -279,13 +286,10 @@ void main() {
     expect(sortedHighToLow.last.jobId, equals('JOB001'));
   });
 
-  testWidgets('Phase 9 Jobs Screen Direct Render Test',
-      (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: JobsScreen(),
-      ),
-    );
+  testWidgets('Phase 9 Jobs Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: JobsScreen()));
 
     expect(find.text('Available Jobs'), findsOneWidget);
     expect(find.byIcon(Icons.tune_rounded), findsOneWidget);
@@ -331,13 +335,15 @@ void main() {
 
     // 5. Recommendations test
     expect(result.recommendations.length, equals(2));
-    final dartRec =
-        result.recommendations.firstWhere((r) => r.skillName == 'Dart');
+    final dartRec = result.recommendations.firstWhere(
+      (r) => r.skillName == 'Dart',
+    );
     expect(dartRec.keyTopics.isNotEmpty, isTrue);
   });
 
-  testWidgets('Phase 10 Skill Gap Analysis Screen Direct Render Test',
-      (WidgetTester tester) async {
+  testWidgets('Phase 10 Skill Gap Analysis Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     const job = Job(
       jobId: 'JOB102',
       title: 'Flutter Lead',
@@ -349,17 +355,11 @@ void main() {
       description: 'Build Flutter Apps',
     );
 
-    const profile = StudentProfile(
-      userId: 'student1',
-      skills: 'Flutter',
-    );
+    const profile = StudentProfile(userId: 'student1', skills: 'Flutter');
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: SkillGapAnalysisScreen(
-          job: job,
-          initialProfile: profile,
-        ),
+        home: SkillGapAnalysisScreen(job: job, initialProfile: profile),
       ),
     );
 
@@ -372,33 +372,36 @@ void main() {
     expect(find.text('Recommended Learning Roadmaps'), findsOneWidget);
   });
 
-  test('Phase 10 Expected Test 1: Full Match with Extra Student Competencies', () {
-    const job = Job(
-      jobId: 'JOB201',
-      title: 'Flutter Developer',
-      company: 'Tech Solutions',
-      location: 'Ahmedabad',
-      jobType: 'Full-time',
-      skills: 'Flutter',
-      salary: '10 LPA',
-      description: 'Flutter App Dev',
-    );
+  test(
+    'Phase 10 Expected Test 1: Full Match with Extra Student Competencies',
+    () {
+      const job = Job(
+        jobId: 'JOB201',
+        title: 'Flutter Developer',
+        company: 'Tech Solutions',
+        location: 'Ahmedabad',
+        jobType: 'Full-time',
+        skills: 'Flutter',
+        salary: '10 LPA',
+        description: 'Flutter App Dev',
+      );
 
-    const profile = StudentProfile(
-      userId: 'student1',
-      skills: 'Flutter, Dart, Java, Python, HTML, CSS, Git',
-    );
+      const profile = StudentProfile(
+        userId: 'student1',
+        skills: 'Flutter, Dart, Java, Python, HTML, CSS, Git',
+      );
 
-    final result = SkillGapAnalyzer.analyze(job: job, profile: profile);
+      final result = SkillGapAnalyzer.analyze(job: job, profile: profile);
 
-    expect(result.matchPercentage, equals(100.0));
-    expect(result.matchedSkills, equals(['Flutter']));
-    expect(result.missingSkills, isEmpty);
-    expect(
-      result.extraSkills,
-      equals(['Dart', 'Java', 'Python', 'HTML', 'CSS', 'Git']),
-    );
-  });
+      expect(result.matchPercentage, equals(100.0));
+      expect(result.matchedSkills, equals(['Flutter']));
+      expect(result.missingSkills, isEmpty);
+      expect(
+        result.extraSkills,
+        equals(['Dart', 'Java', 'Python', 'HTML', 'CSS', 'Git']),
+      );
+    },
+  );
 
   test('Phase 10 Expected Test 2: Zero Match with Missing Skill', () {
     const job = Job(
@@ -436,10 +439,7 @@ void main() {
       description: 'Full Stack',
     );
 
-    const profile = StudentProfile(
-      userId: 'student1',
-      skills: 'js, Java',
-    );
+    const profile = StudentProfile(userId: 'student1', skills: 'js, Java');
 
     final result = SkillGapAnalyzer.analyze(job: job, profile: profile);
 
@@ -450,11 +450,26 @@ void main() {
   });
 
   test('Phase 11 Application Status Helper Normalization & Colors Test', () {
-    expect(ApplicationStatusHelper.normalizeStatus('applied'), equals('Applied'));
-    expect(ApplicationStatusHelper.normalizeStatus('Under Review'), equals('Under Review'));
-    expect(ApplicationStatusHelper.normalizeStatus('shortlisted'), equals('Shortlisted'));
-    expect(ApplicationStatusHelper.normalizeStatus('Selected'), equals('Selected'));
-    expect(ApplicationStatusHelper.normalizeStatus('REJECTED'), equals('Rejected'));
+    expect(
+      ApplicationStatusHelper.normalizeStatus('applied'),
+      equals('Applied'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('Under Review'),
+      equals('Under Review'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('shortlisted'),
+      equals('Shortlisted'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('Selected'),
+      equals('Selected'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('REJECTED'),
+      equals('Rejected'),
+    );
 
     expect(ApplicationStatusHelper.getStepIndex('Applied'), equals(0));
     expect(ApplicationStatusHelper.getStepIndex('Under Review'), equals(1));
@@ -498,22 +513,33 @@ void main() {
     ];
 
     // Title search matching
-    final searchFlutter = apps.where((a) => a.title.toLowerCase().contains('flutter')).toList();
+    final searchFlutter = apps
+        .where((a) => a.title.toLowerCase().contains('flutter'))
+        .toList();
     expect(searchFlutter.length, equals(1));
     expect(searchFlutter.first.applicationId, equals('APP001'));
 
     // Company search matching
-    final searchMicrosoft = apps.where((a) => a.company.toLowerCase().contains('microsoft')).toList();
+    final searchMicrosoft = apps
+        .where((a) => a.company.toLowerCase().contains('microsoft'))
+        .toList();
     expect(searchMicrosoft.length, equals(1));
 
     // Status filter matching
-    final shortlistedApps = apps.where((a) => ApplicationStatusHelper.normalizeStatus(a.status) == 'Shortlisted').toList();
+    final shortlistedApps = apps
+        .where(
+          (a) =>
+              ApplicationStatusHelper.normalizeStatus(a.status) ==
+              'Shortlisted',
+        )
+        .toList();
     expect(shortlistedApps.length, equals(1));
     expect(shortlistedApps.first.title, equals('Frontend Intern'));
   });
 
-  testWidgets('Phase 11 Application Timeline Widget Direct Render Test',
-      (WidgetTester tester) async {
+  testWidgets('Phase 11 Application Timeline Widget Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -530,8 +556,9 @@ void main() {
     expect(find.text('Under Review'), findsOneWidget);
   });
 
-  testWidgets('Phase 11 My Applications Screen Direct Render Test',
-      (WidgetTester tester) async {
+  testWidgets('Phase 11 My Applications Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'student123',
       role: 'Student',
@@ -539,11 +566,7 @@ void main() {
       email: 'student@campus.edu',
     );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: MyApplicationsScreen(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: MyApplicationsScreen()));
 
     expect(find.text('My Applications'), findsOneWidget);
     await tester.pumpAndSettle();
@@ -554,7 +577,10 @@ void main() {
 
   test('Phase 12 Placement Readiness Calculator Formula Unit Test', () {
     const emptyProfile = StudentProfile(userId: 'student1');
-    expect(PlacementReadinessCalculator.calculateProfileCompleteness(emptyProfile), equals(0.0));
+    expect(
+      PlacementReadinessCalculator.calculateProfileCompleteness(emptyProfile),
+      equals(0.0),
+    );
 
     const fullProfile = StudentProfile(
       userId: 'student1',
@@ -568,7 +594,10 @@ void main() {
       projects: 'Smart Campus Placement App',
       certifications: 'Google Cloud Certified',
     );
-    expect(PlacementReadinessCalculator.calculateProfileCompleteness(fullProfile), equals(100.0));
+    expect(
+      PlacementReadinessCalculator.calculateProfileCompleteness(fullProfile),
+      equals(100.0),
+    );
 
     const jobs = [
       Job(
@@ -593,18 +622,22 @@ void main() {
       ),
     ];
 
-    final marketAlignment = PlacementReadinessCalculator.calculateMarketAlignment(jobs, fullProfile);
+    final marketAlignment =
+        PlacementReadinessCalculator.calculateMarketAlignment(
+          jobs,
+          fullProfile,
+        );
     expect(marketAlignment, equals(100.0));
 
-    final overall = PlacementReadinessCalculator.calculateOverallReadiness(fullProfile, jobs);
+    final overall = PlacementReadinessCalculator.calculateOverallReadiness(
+      fullProfile,
+      jobs,
+    );
     expect(overall, equals(100.0));
   });
 
   test('Phase 12 Job Recommendation Sorting & Classification Unit Test', () {
-    const profile = StudentProfile(
-      userId: 'student1',
-      skills: 'Flutter, Dart',
-    );
+    const profile = StudentProfile(userId: 'student1', skills: 'Flutter, Dart');
 
     const jobs = [
       Job(
@@ -639,29 +672,42 @@ void main() {
       ),
     ];
 
-    final sorted = PlacementReadinessCalculator.sortJobsByRecommendation(jobs, profile);
+    final sorted = PlacementReadinessCalculator.sortJobsByRecommendation(
+      jobs,
+      profile,
+    );
 
     // JOB002 has 100% match (Flutter, Dart) => First
     expect(sorted.first.job.jobId, equals('JOB002'));
     expect(sorted.first.matchPercentage, equals(100.0));
-    expect(PlacementReadinessCalculator.getMatchCategory(sorted.first.matchPercentage), equals('Strong Match'));
+    expect(
+      PlacementReadinessCalculator.getMatchCategory(
+        sorted.first.matchPercentage,
+      ),
+      equals('Strong Match'),
+    );
 
     // JOB003 has 50% match (Flutter matched out of 2) => Second
     expect(sorted[1].job.jobId, equals('JOB003'));
     expect(sorted[1].matchPercentage, equals(50.0));
-    expect(PlacementReadinessCalculator.getMatchCategory(sorted[1].matchPercentage), equals('Good Match'));
+    expect(
+      PlacementReadinessCalculator.getMatchCategory(sorted[1].matchPercentage),
+      equals('Good Match'),
+    );
 
     // JOB001 has 0% match => Last
     expect(sorted.last.job.jobId, equals('JOB001'));
     expect(sorted.last.matchPercentage, equals(0.0));
-    expect(PlacementReadinessCalculator.getMatchCategory(sorted.last.matchPercentage), equals('Needs Improvement'));
+    expect(
+      PlacementReadinessCalculator.getMatchCategory(
+        sorted.last.matchPercentage,
+      ),
+      equals('Needs Improvement'),
+    );
   });
 
   test('Phase 12 Missing Skills Aggregation Unit Test', () {
-    const profile = StudentProfile(
-      userId: 'student1',
-      skills: 'Flutter',
-    );
+    const profile = StudentProfile(userId: 'student1', skills: 'Flutter');
 
     const jobs = [
       Job(
@@ -686,15 +732,19 @@ void main() {
       ),
     ];
 
-    final missingSummary = PlacementReadinessCalculator.getMissingSkillsSummary(jobs, profile);
+    final missingSummary = PlacementReadinessCalculator.getMissingSkillsSummary(
+      jobs,
+      profile,
+    );
 
     // SQL is missing in both jobs (frequency = 2) => Top missing skill
     expect(missingSummary.first.key, equals('SQL'));
     expect(missingSummary.first.value, equals(2));
   });
 
-  testWidgets('Phase 12 Placement Readiness Screen Direct Render Test',
-      (WidgetTester tester) async {
+  testWidgets('Phase 12 Placement Readiness Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'student123',
       role: 'Student',
@@ -703,9 +753,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: PlacementReadinessScreen(),
-      ),
+      const MaterialApp(home: PlacementReadinessScreen()),
     );
 
     expect(find.text('Placement Readiness & Insights'), findsOneWidget);
@@ -716,13 +764,25 @@ void main() {
   });
 
   test('Company Role Normalization & Routing Logic Test', () {
-    final rolesToTest = ['Company', 'company', ' Company ', 'HR', 'hr', 'Recruiter'];
+    final rolesToTest = [
+      'Company',
+      'company',
+      ' Company ',
+      'HR',
+      'hr',
+      'Recruiter',
+    ];
     for (final role in rolesToTest) {
       final String normalizedRole = role.trim().toLowerCase();
-      final bool isCompany = normalizedRole == 'company' ||
+      final bool isCompany =
+          normalizedRole == 'company' ||
           normalizedRole == 'hr' ||
           normalizedRole == 'recruiter';
-      expect(isCompany, isTrue, reason: 'Role "$role" should normalize to Company dashboard route.');
+      expect(
+        isCompany,
+        isTrue,
+        reason: 'Role "$role" should normalize to Company dashboard route.',
+      );
     }
 
     const studentRole = 'Student';
@@ -748,8 +808,14 @@ void main() {
       'role': ' student ',
       'status': 'Active',
     };
-    final String studentRole = activeStudentResp['role'].toString().trim().toLowerCase();
-    final String studentStatus = activeStudentResp['status'].toString().trim().toLowerCase();
+    final String studentRole = activeStudentResp['role']
+        .toString()
+        .trim()
+        .toLowerCase();
+    final String studentStatus = activeStudentResp['status']
+        .toString()
+        .trim()
+        .toLowerCase();
     expect(studentRole, equals('student'));
     expect(studentStatus, equals('active'));
 
@@ -759,8 +825,14 @@ void main() {
       'role': 'student',
       'status': 'Inactive',
     };
-    final String inactiveStatus = inactiveUserResp['status'].toString().trim().toLowerCase();
-    expect(inactiveStatus == 'inactive' || inactiveStatus == 'disabled', isTrue);
+    final String inactiveStatus = inactiveUserResp['status']
+        .toString()
+        .trim()
+        .toLowerCase();
+    expect(
+      inactiveStatus == 'inactive' || inactiveStatus == 'disabled',
+      isTrue,
+    );
 
     final companyResp = {
       'success': true,
@@ -768,7 +840,10 @@ void main() {
       'role': 'Company',
       'status': 'Active',
     };
-    expect(companyResp['role'].toString().trim().toLowerCase(), equals('company'));
+    expect(
+      companyResp['role'].toString().trim().toLowerCase(),
+      equals('company'),
+    );
 
     final adminResp = {
       'success': true,
@@ -794,7 +869,10 @@ void main() {
     expect(AppValidators.validateMobile('9876543210'), isNull);
 
     // Confirm Password Match
-    expect(AppValidators.validateConfirmPassword('pass123', 'pass456'), isNotNull);
+    expect(
+      AppValidators.validateConfirmPassword('pass123', 'pass456'),
+      isNotNull,
+    );
     expect(AppValidators.validateConfirmPassword('pass123', 'pass123'), isNull);
   });
 
@@ -810,7 +888,10 @@ void main() {
     };
 
     expect(registrationPayload['action'], equals('register'));
-    expect(registrationPayload['role']!.trim().toLowerCase(), equals('student'));
+    expect(
+      registrationPayload['role']!.trim().toLowerCase(),
+      equals('student'),
+    );
 
     // Duplicate rejection handling check
     final duplicateErrorResp = {
@@ -835,7 +916,7 @@ void main() {
         'skills': 'Flutter, Dart, REST API',
         'projects': 'Campus Placement Portal',
         'certifications': 'Flutter Certified Developer',
-      }
+      },
     };
 
     final profile = StudentProfile.fromJson(profileJson);
@@ -930,10 +1011,7 @@ void main() {
 
   test('Phase 5 Job Listings Backend Source Only & Zero Fallback Test', () {
     // 1. Empty backend response yields empty job list (no hardcoded/dummy fallbacks)
-    final emptyResponse = {
-      'success': true,
-      'jobs': <Map<String, dynamic>>[],
-    };
+    final emptyResponse = {'success': true, 'jobs': <Map<String, dynamic>>[]};
 
     final List rawJobs = emptyResponse['jobs'] as List;
     final List<Job> parsedJobs = rawJobs
@@ -958,7 +1036,7 @@ void main() {
           'description': 'Flutter app development',
           'status': 'Active',
           'postedDate': '2026-09-01',
-        }
+        },
       ],
     };
 
@@ -1016,18 +1094,12 @@ void main() {
     expect(jobB.skills, contains('Python'));
 
     // 2. Verify getJobDetails API parameter format
-    final queryParams = {
-      'action': 'get_job_details',
-      'jobId': jobA.jobId,
-    };
+    final queryParams = {'action': 'get_job_details', 'jobId': jobA.jobId};
     expect(queryParams['action'], equals('get_job_details'));
     expect(queryParams['jobId'], equals('JOB_A'));
 
     // 3. Verify error handling when job is not found
-    final notFoundResponse = {
-      'success': false,
-      'message': 'Job not found',
-    };
+    final notFoundResponse = {'success': false, 'message': 'Job not found'};
     expect(notFoundResponse['success'], isFalse);
     expect(notFoundResponse['message'], equals('Job not found'));
   });
@@ -1123,10 +1195,7 @@ void main() {
     final updatedItem = item.copyWith(isRead: true);
     expect(updatedItem.isRead, isTrue);
 
-    final getParams = {
-      'action': 'get_notifications',
-      'userId': 'STU_8001',
-    };
+    final getParams = {'action': 'get_notifications', 'userId': 'STU_8001'};
     expect(getParams['action'], equals('get_notifications'));
     expect(getParams['userId'], equals('STU_8001'));
 
@@ -1174,7 +1243,11 @@ void main() {
 
     final List<NotificationItem> studentNotifs = rawNotifications
         .map((n) => NotificationItem.fromJson(n))
-        .where((n) => n.userId.toLowerCase() == currentStudentId.toLowerCase() || n.userId.toLowerCase() == 'all')
+        .where(
+          (n) =>
+              n.userId.toLowerCase() == currentStudentId.toLowerCase() ||
+              n.userId.toLowerCase() == 'all',
+        )
         .toList();
 
     expect(studentNotifs.length, equals(2));
@@ -1183,7 +1256,9 @@ void main() {
     expect(studentNotifs.any((n) => n.id == 'N2'), isFalse);
   });
 
-  testWidgets('Phase 8 Notifications Screen Direct Render Test', (WidgetTester tester) async {
+  testWidgets('Phase 8 Notifications Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'STU_8001',
       role: 'Student',
@@ -1191,11 +1266,7 @@ void main() {
       email: 'student@campus.edu',
     );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: NotificationsScreen(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: NotificationsScreen()));
 
     expect(find.text(AppStrings.notificationsTitle), findsOneWidget);
     await tester.pumpAndSettle();
@@ -1205,11 +1276,26 @@ void main() {
   });
 
   test('Phase 11 Application Status Helper Normalization & Colors Test', () {
-    expect(ApplicationStatusHelper.normalizeStatus('Applied'), equals('Applied'));
-    expect(ApplicationStatusHelper.normalizeStatus('under review'), equals('Under Review'));
-    expect(ApplicationStatusHelper.normalizeStatus('shortlisted candidate'), equals('Shortlisted'));
-    expect(ApplicationStatusHelper.normalizeStatus('Selected!'), equals('Selected'));
-    expect(ApplicationStatusHelper.normalizeStatus('rejected application'), equals('Rejected'));
+    expect(
+      ApplicationStatusHelper.normalizeStatus('Applied'),
+      equals('Applied'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('under review'),
+      equals('Under Review'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('shortlisted candidate'),
+      equals('Shortlisted'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('Selected!'),
+      equals('Selected'),
+    );
+    expect(
+      ApplicationStatusHelper.normalizeStatus('rejected application'),
+      equals('Rejected'),
+    );
 
     expect(ApplicationStatusHelper.getStepIndex('Applied'), equals(0));
     expect(ApplicationStatusHelper.getStepIndex('Under Review'), equals(1));
@@ -1243,17 +1329,27 @@ void main() {
     ];
 
     // Status Filter Check
-    final shortlistedApps = apps.where((a) => ApplicationStatusHelper.normalizeStatus(a.status) == 'Shortlisted').toList();
+    final shortlistedApps = apps
+        .where(
+          (a) =>
+              ApplicationStatusHelper.normalizeStatus(a.status) ==
+              'Shortlisted',
+        )
+        .toList();
     expect(shortlistedApps.length, equals(1));
     expect(shortlistedApps.first.applicationId, equals('APP2'));
 
     // Search Query Check
-    final searchResult = apps.where((a) => a.company.toLowerCase().contains('google')).toList();
+    final searchResult = apps
+        .where((a) => a.company.toLowerCase().contains('google'))
+        .toList();
     expect(searchResult.length, equals(1));
     expect(searchResult.first.jobId, equals('JOB1'));
   });
 
-  testWidgets('Phase 11 Application Timeline Widget Direct Render Test', (WidgetTester tester) async {
+  testWidgets('Phase 11 Application Timeline Widget Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -1270,7 +1366,9 @@ void main() {
     expect(find.text('Shortlisted'), findsWidgets);
   });
 
-  testWidgets('Phase 11 My Applications Screen Direct Render Test', (WidgetTester tester) async {
+  testWidgets('Phase 11 My Applications Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'STU_1101',
       role: 'Student',
@@ -1278,11 +1376,7 @@ void main() {
       email: 'student@campus.edu',
     );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: MyApplicationsScreen(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: MyApplicationsScreen()));
 
     expect(find.text(AppStrings.myApplications), findsOneWidget);
     await tester.pumpAndSettle();
@@ -1305,7 +1399,8 @@ void main() {
       certifications: 'Flutter Certified',
     );
 
-    final completeness = PlacementReadinessCalculator.calculateProfileCompleteness(profile);
+    final completeness =
+        PlacementReadinessCalculator.calculateProfileCompleteness(profile);
     expect(completeness, equals(100.0));
 
     const jobs = [
@@ -1321,18 +1416,19 @@ void main() {
       ),
     ];
 
-    final marketAlignment = PlacementReadinessCalculator.calculateMarketAlignment(jobs, profile);
+    final marketAlignment =
+        PlacementReadinessCalculator.calculateMarketAlignment(jobs, profile);
     expect(marketAlignment, equals(100.0));
 
-    final overall = PlacementReadinessCalculator.calculateOverallReadiness(profile, jobs);
+    final overall = PlacementReadinessCalculator.calculateOverallReadiness(
+      profile,
+      jobs,
+    );
     expect(overall, equals(100.0));
   });
 
   test('Phase 12 Job Recommendation Sorting & Classification Unit Test', () {
-    const profile = StudentProfile(
-      userId: 'STU1202',
-      skills: 'Flutter, Dart',
-    );
+    const profile = StudentProfile(userId: 'STU1202', skills: 'Flutter, Dart');
 
     const jobs = [
       Job(
@@ -1357,21 +1453,29 @@ void main() {
       ),
     ];
 
-    final items = PlacementReadinessCalculator.sortJobsByRecommendation(jobs, profile);
+    final items = PlacementReadinessCalculator.sortJobsByRecommendation(
+      jobs,
+      profile,
+    );
     expect(items.first.job.jobId, equals('JOB2'));
     expect(items.first.matchPercentage, equals(100.0));
-    expect(PlacementReadinessCalculator.getMatchCategory(items.first.matchPercentage), equals(PlacementReadinessCalculator.categoryStrong));
+    expect(
+      PlacementReadinessCalculator.getMatchCategory(
+        items.first.matchPercentage,
+      ),
+      equals(PlacementReadinessCalculator.categoryStrong),
+    );
 
     expect(items.last.job.jobId, equals('JOB1'));
     expect(items.last.matchPercentage, equals(0.0));
-    expect(PlacementReadinessCalculator.getMatchCategory(items.last.matchPercentage), equals(PlacementReadinessCalculator.categoryNeedsImprovement));
+    expect(
+      PlacementReadinessCalculator.getMatchCategory(items.last.matchPercentage),
+      equals(PlacementReadinessCalculator.categoryNeedsImprovement),
+    );
   });
 
   test('Phase 12 Missing Skills Aggregation Unit Test', () {
-    const profile = StudentProfile(
-      userId: 'STU1203',
-      skills: 'Flutter',
-    );
+    const profile = StudentProfile(userId: 'STU1203', skills: 'Flutter');
 
     const jobs = [
       Job(
@@ -1396,13 +1500,18 @@ void main() {
       ),
     ];
 
-    final summary = PlacementReadinessCalculator.getMissingSkillsSummary(jobs, profile);
+    final summary = PlacementReadinessCalculator.getMissingSkillsSummary(
+      jobs,
+      profile,
+    );
     // Java is missing in both jobs (frequency 2)
     final javaEntry = summary.firstWhere((e) => e.key == 'Java');
     expect(javaEntry.value, equals(2));
   });
 
-  testWidgets('Phase 12 Placement Readiness Screen Direct Render Test', (WidgetTester tester) async {
+  testWidgets('Phase 12 Placement Readiness Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'STU1204',
       role: 'Student',
@@ -1411,9 +1520,7 @@ void main() {
     );
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: PlacementReadinessScreen(),
-      ),
+      const MaterialApp(home: PlacementReadinessScreen()),
     );
 
     expect(find.text(AppStrings.placementReadinessTitle), findsOneWidget);
@@ -1484,7 +1591,9 @@ void main() {
     expect(selectedCount, equals(1));
   });
 
-  testWidgets('Company Dashboard Direct Render Test', (WidgetTester tester) async {
+  testWidgets('Company Dashboard Direct Render Test', (
+    WidgetTester tester,
+  ) async {
     UserSession().setSession(
       userId: 'COM001',
       role: 'Company',
@@ -1492,11 +1601,7 @@ void main() {
       email: 'contact@abccompany.com',
     );
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: CompanyDashboard(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: CompanyDashboard()));
 
     expect(find.text('Company Dashboard'), findsOneWidget);
     expect(find.text('Welcome, ABC Company 🏢'), findsOneWidget);
@@ -1511,18 +1616,20 @@ void main() {
   });
 
   test('Company Module Post Job Parameter Mapping Unit Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'post_job',
-      'title': 'Flutter Developer',
-      'jobTitle': 'Flutter Developer',
-      'company': 'COM001',
-      'companyName': 'COM001',
-      'location': 'Ahmedabad',
-      'skills': 'Flutter, Dart',
-      'salary': '12 LPA',
-      'description': 'Flutter app developer',
-      'jobType': 'Full-time',
-    });
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(
+      queryParameters: {
+        'action': 'post_job',
+        'title': 'Flutter Developer',
+        'jobTitle': 'Flutter Developer',
+        'company': 'COM001',
+        'companyName': 'COM001',
+        'location': 'Ahmedabad',
+        'skills': 'Flutter, Dart',
+        'salary': '12 LPA',
+        'description': 'Flutter app developer',
+        'jobType': 'Full-time',
+      },
+    );
 
     expect(uri.queryParameters['action'], equals('post_job'));
     expect(uri.queryParameters['title'], equals('Flutter Developer'));
@@ -1556,7 +1663,10 @@ void main() {
     expect(fb.studentId, equals('test_student'));
     expect(fb.companyId, equals('COM001'));
     expect(fb.rating, equals(4.5));
-    expect(fb.feedback, equals('Excellent candidate with strong technical background.'));
+    expect(
+      fb.feedback,
+      equals('Excellent candidate with strong technical background.'),
+    );
     expect(fb.createdAt, equals('2026-09-27'));
 
     final queryParams = fb.toQueryParameters();
@@ -1622,19 +1732,21 @@ void main() {
   });
 
   test('Phase 13 Company Recruiter Feedback Payload Mapping Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_recruiter_feedback',
-      'companyId': 'COM001',
-    });
+    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(
+      queryParameters: {
+        'action': 'get_recruiter_feedback',
+        'companyId': 'COM001',
+      },
+    );
 
     expect(uri.queryParameters['action'], equals('get_recruiter_feedback'));
     expect(uri.queryParameters['companyId'], equals('COM001'));
   });
 
   test('Phase 14 Admin Statistics Payload & Endpoint Mapping Unit Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_admin_statistics',
-    });
+    final uri = Uri.parse(
+      GoogleSheetsService.baseUrl,
+    ).replace(queryParameters: {'action': 'get_admin_statistics'});
 
     expect(uri.queryParameters['action'], equals('get_admin_statistics'));
 
@@ -1657,75 +1769,202 @@ void main() {
     expect(mockResponse['placementPercentage'], equals(33.33));
   });
 
-  test('Phase 14A Admin Dashboard Active Drives Real Data Binding Unit Test', () {
-    final mockJobsJson = [
-      {
-        'jobId': 'JOB101',
-        'title': 'Flutter App Developer',
-        'company': 'Tech Corp',
-        'location': 'Ahmedabad',
-        'jobType': 'Full-time',
-        'skills': 'Flutter, Dart',
-        'salary': '₹12 LPA',
-        'description': 'Mobile App Dev',
-        'status': 'Active',
-        'postedDate': '2026-09-27',
-      },
-    ];
-
-    final jobsList = mockJobsJson.map((j) => Job.fromJson(j)).toList();
-
-    expect(jobsList.length, equals(1));
-    final drive = jobsList.first;
-    expect(drive.jobId, equals('JOB101'));
-    expect(drive.title, equals('Flutter App Developer'));
-    expect(drive.company, equals('Tech Corp'));
-    expect(drive.salary, equals('₹12 LPA'));
-    expect(drive.location, equals('Ahmedabad'));
-    expect(drive.status, equals('Active'));
-  });
-
-  test('Phase 14B Admin Dashboard Company Approvals Payload & Action Mapping Unit Test', () {
-    final getUri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_admin_companies',
-    });
-    expect(getUri.queryParameters['action'], equals('get_admin_companies'));
-
-    final updateUri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'update_company_status',
-      'userId': 'COM001',
-      'status': 'Active',
-    });
-    expect(updateUri.queryParameters['action'], equals('update_company_status'));
-    expect(updateUri.queryParameters['userId'], equals('COM001'));
-    expect(updateUri.queryParameters['status'], equals('Active'));
-
-    final mockCompaniesResp = {
-      'success': true,
-      'companies': [
+  test(
+    'Phase 14A Admin Dashboard Active Drives Real Data Binding Unit Test',
+    () {
+      final mockJobsJson = [
         {
-          'userId': 'COM001',
-          'name': 'ABC Company',
-          'email': 'company@gmail.com',
+          'jobId': 'JOB101',
+          'title': 'Flutter App Developer',
+          'company': 'Tech Corp',
+          'location': 'Ahmedabad',
+          'jobType': 'Full-time',
+          'skills': 'Flutter, Dart',
+          'salary': '₹12 LPA',
+          'description': 'Mobile App Dev',
           'status': 'Active',
-          'role': 'Company',
-        }
-      ],
-    };
+          'postedDate': '2026-09-27',
+        },
+      ];
 
-    expect(mockCompaniesResp['success'], isTrue);
-    final list = mockCompaniesResp['companies'] as List;
-    expect(list.length, equals(1));
-    final firstComp = list.first as Map<String, dynamic>;
-    expect(firstComp['userId'], equals('COM001'));
-    expect(firstComp['name'], equals('ABC Company'));
-    expect(firstComp['status'], equals('Active'));
-  });
+      final jobsList = mockJobsJson.map((j) => Job.fromJson(j)).toList();
+
+      expect(jobsList.length, equals(1));
+      final drive = jobsList.first;
+      expect(drive.jobId, equals('JOB101'));
+      expect(drive.title, equals('Flutter App Developer'));
+      expect(drive.company, equals('Tech Corp'));
+      expect(drive.salary, equals('₹12 LPA'));
+      expect(drive.location, equals('Ahmedabad'));
+      expect(drive.status, equals('Active'));
+    },
+  );
+
+  test(
+    'Phase 14B Admin Dashboard Company Approvals Payload & Action Mapping Unit Test',
+    () {
+      final getUri = Uri.parse(
+        GoogleSheetsService.baseUrl,
+      ).replace(queryParameters: {'action': 'get_admin_companies'});
+      expect(getUri.queryParameters['action'], equals('get_admin_companies'));
+
+      final updateUri = Uri.parse(GoogleSheetsService.baseUrl).replace(
+        queryParameters: {
+          'action': 'update_company_status',
+          'userId': 'COM001',
+          'status': 'Active',
+        },
+      );
+      expect(
+        updateUri.queryParameters['action'],
+        equals('update_company_status'),
+      );
+      expect(updateUri.queryParameters['userId'], equals('COM001'));
+      expect(updateUri.queryParameters['status'], equals('Active'));
+
+      final mockCompaniesResp = {
+        'success': true,
+        'companies': [
+          {
+            'userId': 'COM001',
+            'name': 'ABC Company',
+            'email': 'company@gmail.com',
+            'status': 'Active',
+            'role': 'Company',
+          },
+        ],
+      };
+
+      expect(mockCompaniesResp['success'], isTrue);
+      final list = mockCompaniesResp['companies'] as List;
+      expect(list.length, equals(1));
+      final firstComp = list.first as Map<String, dynamic>;
+      expect(firstComp['userId'], equals('COM001'));
+      expect(firstComp['name'], equals('ABC Company'));
+      expect(firstComp['status'], equals('Active'));
+    },
+  );
+
+  test(
+    'Phase 14 Admin Registered Students Data Fetching & Mapping Unit Test',
+    () {
+      final uri = Uri.parse(
+        GoogleSheetsService.baseUrl,
+      ).replace(queryParameters: {'action': 'get_admin_students'});
+
+      expect(uri.queryParameters['action'], equals('get_admin_students'));
+
+      final mockStudentsResp = {
+        'success': true,
+        'students': [
+          {
+            'userId': 'STU001',
+            'studentId': 'STU001',
+            'name': 'Student One',
+            'email': 'stu1@campus.edu',
+            'mobile': '9876543210',
+            'education': 'B.Tech CSE',
+            'course': 'B.Tech CSE',
+            'semester': 'Semester 8',
+            'skills': 'Flutter, Dart, Java',
+            'cgpa': '8.5',
+            'resumeUrl': 'https://drive.google.com/file/d/sample1',
+            'status': 'Active',
+          },
+          {
+            'userId': 'STU002',
+            'studentId': 'STU002',
+            'name': 'Student Two',
+            'email': 'stu2@campus.edu',
+            'mobile': '9876543211',
+            'education': 'B.Tech IT',
+            'course': 'B.Tech IT',
+            'semester': 'Semester 6',
+            'skills': 'Python, SQL',
+            'cgpa': '7.8',
+            'resumeUrl': 'https://drive.google.com/file/d/sample2',
+            'status': 'Active',
+          },
+          {
+            'userId': 'STU003',
+            'studentId': 'STU003',
+            'name': 'Student Three',
+            'email': 'stu3@campus.edu',
+            'mobile': '9876543212',
+            'education': '',
+            'course': '',
+            'semester': '',
+            'skills': '',
+            'cgpa': '',
+            'resumeUrl': '',
+            'status': 'Active',
+          },
+          {
+            'userId': 'STU004',
+            'studentId': 'STU004',
+            'name': 'Student Four',
+            'email': 'stu4@campus.edu',
+            'mobile': '',
+            'education': '',
+            'course': '',
+            'semester': '',
+            'skills': '',
+            'cgpa': '',
+            'resumeUrl': '',
+            'status': 'Active',
+          },
+          {
+            'userId': 'STU005',
+            'studentId': 'STU005',
+            'name': 'Student Five',
+            'email': 'stu5@campus.edu',
+            'mobile': '9876543214',
+            'education': 'M.Tech',
+            'course': 'M.Tech',
+            'semester': 'Semester 4',
+            'skills': 'AI, ML',
+            'cgpa': '9.0',
+            'resumeUrl': '',
+            'status': 'Active',
+          },
+          {
+            'userId': 'STU006',
+            'studentId': 'STU006',
+            'name': 'Student Six',
+            'email': 'stu6@campus.edu',
+            'mobile': '',
+            'education': '',
+            'course': '',
+            'semester': '',
+            'skills': '',
+            'cgpa': '',
+            'resumeUrl': '',
+            'status': 'Active',
+          },
+        ],
+      };
+
+      expect(mockStudentsResp['success'], isTrue);
+      final rawStudents = mockStudentsResp['students'] as List;
+      expect(rawStudents.length, equals(6));
+
+      final Set<String> studentIds = {};
+      for (final s in rawStudents) {
+        final map = Map<String, dynamic>.from(s as Map);
+        final id = (map['studentId'] ?? map['userId'] ?? '').toString();
+        expect(id.isNotEmpty, isTrue);
+        expect(studentIds.contains(id.toLowerCase()), isFalse);
+        studentIds.add(id.toLowerCase());
+      }
+
+      expect(studentIds.length, equals(6));
+    },
+  );
 
   test('Phase 15 Most Demanded Skills Payload & Data Normalization Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_most_demanded_skills',
-    });
+    final uri = Uri.parse(
+      GoogleSheetsService.baseUrl,
+    ).replace(queryParameters: {'action': 'get_most_demanded_skills'});
     expect(uri.queryParameters['action'], equals('get_most_demanded_skills'));
 
     final mockSkillsResponse = {
@@ -1745,9 +1984,9 @@ void main() {
   });
 
   test('Phase 15 Student Readiness Distribution Reuse Logic Unit Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_readiness_distribution',
-    });
+    final uri = Uri.parse(
+      GoogleSheetsService.baseUrl,
+    ).replace(queryParameters: {'action': 'get_readiness_distribution'});
     expect(uri.queryParameters['action'], equals('get_readiness_distribution'));
 
     final mockReadinessResponse = {
@@ -1767,9 +2006,9 @@ void main() {
   });
 
   test('Phase 15 Top Recommended Jobs Payload & Calculation Unit Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_top_recommended_jobs',
-    });
+    final uri = Uri.parse(
+      GoogleSheetsService.baseUrl,
+    ).replace(queryParameters: {'action': 'get_top_recommended_jobs'});
     expect(uri.queryParameters['action'], equals('get_top_recommended_jobs'));
 
     final mockRecommendedResponse = {
@@ -1793,9 +2032,9 @@ void main() {
   });
 
   test('Phase 15 Placement Trends Payload & Monthly Grouping Unit Test', () {
-    final uri = Uri.parse(GoogleSheetsService.baseUrl).replace(queryParameters: {
-      'action': 'get_placement_trends',
-    });
+    final uri = Uri.parse(
+      GoogleSheetsService.baseUrl,
+    ).replace(queryParameters: {'action': 'get_placement_trends'});
     expect(uri.queryParameters['action'], equals('get_placement_trends'));
 
     final mockTrendsResponse = {
@@ -1819,13 +2058,13 @@ void main() {
     expect(trends[0]['selected'], equals(3));
   });
 
-  testWidgets('Phase 15 Admin Analytics & Reports Widget Render Test', (WidgetTester tester) async {
+  testWidgets('Phase 15 Admin Analytics & Reports Widget Render Test', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: AnalyticsReportsWidget(),
-          ),
+          body: SingleChildScrollView(child: AnalyticsReportsWidget()),
         ),
       ),
     );
@@ -1836,11 +2075,99 @@ void main() {
     expect(find.text('3. Top Recommended Jobs'), findsOneWidget);
     expect(find.text('4. Placement Trends'), findsOneWidget);
   });
+
+  testWidgets('Company Job Applicants Click-Through and JobId Filter Test', (
+    WidgetTester tester,
+  ) async {
+    final jobMap = {
+      'id': 'JOB001',
+      'title': 'Flutter Developer',
+      'company': 'Tech Corp',
+      'location': 'Bangalore',
+      'skills': 'Flutter, Dart',
+      'salary': '12 LPA',
+      'description': 'Dev',
+      'status': 'Active',
+      'postedDate': '2026-10-01',
+      'applicants': 2,
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: CompanyJobCard(job: jobMap)),
+      ),
+    );
+
+    // Verify "2 Applicants" is rendered
+    expect(find.text('2 Applicants'), findsOneWidget);
+
+    // Tap "2 Applicants" text
+    await tester.tap(find.text('2 Applicants'));
+    await tester.pumpAndSettle();
+
+    // Verify navigation to ApplicantsScreen with job title in title/banner
+    expect(find.textContaining('Flutter Developer'), findsWidgets);
+  });
+
+  testWidgets('Company Dashboard Statistics Click-Through Test', (
+    WidgetTester tester,
+  ) async {
+    UserSession().setSession(
+      userId: 'COM001',
+      role: 'Company',
+      name: 'Tech Corp',
+      email: 'recruiter@techcorp.com',
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: CompanyDashboardScreen()));
+
+    await tester.pumpAndSettle();
+
+    // Verify statistics overview items are visible
+    expect(find.text('Posted Jobs'), findsOneWidget);
+    expect(find.text('Total Applicants'), findsOneWidget);
+    expect(find.text('Pending Applications'), findsOneWidget);
+    expect(find.text('Selected Students'), findsOneWidget);
+
+    // Tap "Pending Applications" row
+    await tester.tap(find.text('Pending Applications'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // Verify navigation to ApplicantsScreen with Pending Applications header
+    expect(find.text('Pending Applications'), findsWidgets);
+
+    UserSession().clearSession();
+  });
+
+  testWidgets('Admin Dashboard Statistics Click-Through Test', (
+    WidgetTester tester,
+  ) async {
+    UserSession().setSession(
+      userId: 'ADM001',
+      role: 'Admin',
+      name: 'System Administrator',
+      email: 'admin@campus.edu',
+    );
+
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardScreen()));
+
+    await tester.pumpAndSettle();
+
+    // Verify key metric tiles are visible
+    expect(find.text('Students'), findsWidgets);
+    expect(find.text('Active Jobs'), findsWidgets);
+    expect(find.text('Applications'), findsWidgets);
+    expect(find.text('Shortlisted'), findsWidgets);
+    expect(find.text('Placements'), findsWidgets);
+    expect(find.text('Placement Rate'), findsWidgets);
+
+    // Tap "Students" metric card
+    await tester.tap(find.text('Students').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // Verify navigation to AdminStudentsDetailScreen
+    expect(find.text('Registered Students'), findsOneWidget);
+
+    UserSession().clearSession();
+  });
 }
-
-
-
-
-
-
-
