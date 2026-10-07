@@ -98,12 +98,29 @@ abstract class AppStrings {
   static const String linkedinHint = 'https://linkedin.com/in/yourusername';
   static const String educationLabel = 'Education Details';
   static const String educationHint = 'e.g. B.Tech Computer Science (2022-2026), XYZ Institute';
+  static const String degreeLabel = 'Degree';
+  static const String degreeHint = 'e.g. Bachelor of Computer Applications';
+  static const String uniBoardLabel = 'Uni / Board';
+  static const String uniBoardHint = 'e.g. LJ University';
+  static const String cgpaPercentageLabel = 'CGPA / Percentage';
+  static const String cgpaPercentageHint = 'e.g. 8.2 CGPA';
+  static const String yearLabel = 'Year';
+  static const String yearHint = 'e.g. 2026';
+  static const String addEducationTooltip = 'Add Education';
+  static const String removeEducationTooltip = 'Remove Education';
+
   static const String skillsLabel = 'Skills';
   static const String skillsHint = 'e.g. Flutter, Dart, Java, Python, SQL, REST APIs';
   static const String projectsLabel = 'Projects';
   static const String projectsHint = 'e.g. Smart Campus Placement App, E-Commerce Portal';
   static const String certificationsLabel = 'Certifications';
   static const String certificationsHint = 'e.g. Google Cloud Certified, AWS Cloud Practitioner';
+  static const String courseCertificateLabel = 'Course / Certificate';
+  static const String courseCertificateHint = 'e.g. Google Data Analytics';
+  static const String rankingPercentageLabel = 'Ranking / Percentage';
+  static const String rankingPercentageHint = 'e.g. 90%';
+  static const String addCertificationTooltip = 'Add Certification';
+  static const String removeCertificationTooltip = 'Remove Certification';
 
   static const String saveProfile = 'Save Profile';
   static const String profileSavedSuccess = 'Profile saved successfully!';

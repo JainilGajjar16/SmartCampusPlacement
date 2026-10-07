@@ -314,13 +314,29 @@ class GoogleSheetsService {
     }
   }
 
-  /// Fetches available active jobs from the Google Apps Script backend.
+  /// Fetches available jobs from the Google Apps Script backend.
+  /// Defaults to active jobs only. Optionally includes inactive jobs or filters by company.
   /// Sends action=get_jobs.
-  Future<Map<String, dynamic>> getJobs() async {
+  Future<Map<String, dynamic>> getJobs({
+    bool includeInactive = false,
+    String? companyId,
+    String? company,
+  }) async {
     try {
+      final queryParams = <String, String>{'action': 'get_jobs'};
+      if (includeInactive) {
+        queryParams['includeInactive'] = 'true';
+      }
+      if (companyId != null && companyId.trim().isNotEmpty) {
+        queryParams['companyId'] = companyId.trim();
+      }
+      if (company != null && company.trim().isNotEmpty) {
+        queryParams['company'] = company.trim();
+      }
+
       final uri = Uri.parse(
         baseUrl,
-      ).replace(queryParameters: {'action': 'get_jobs'});
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(uri).timeout(_timeout);
 
@@ -557,21 +573,30 @@ class GoogleSheetsService {
     required String salary,
     required String description,
     String jobType = 'Full-time',
+    int? maxHiring,
   }) async {
     try {
+      final queryParams = <String, String>{
+        'action': 'post_job',
+        'title': title.trim(),
+        'jobTitle': title.trim(),
+        'company': company.trim(),
+        'companyName': company.trim(),
+        'location': location.trim(),
+        'skills': skills.trim(),
+        'salary': salary.trim(),
+        'description': description.trim(),
+        'jobType': jobType.trim(),
+      };
+
+      if (maxHiring != null && maxHiring > 0) {
+        queryParams['maxHiring'] = maxHiring.toString();
+        queryParams['max_hiring'] = maxHiring.toString();
+        queryParams['maxNoOfHiring'] = maxHiring.toString();
+      }
+
       final uri = Uri.parse(baseUrl).replace(
-        queryParameters: {
-          'action': 'post_job',
-          'title': title.trim(),
-          'jobTitle': title.trim(),
-          'company': company.trim(),
-          'companyName': company.trim(),
-          'location': location.trim(),
-          'skills': skills.trim(),
-          'salary': salary.trim(),
-          'description': description.trim(),
-          'jobType': jobType.trim(),
-        },
+        queryParameters: queryParams,
       );
 
       final response = await http.get(uri).timeout(_timeout);
@@ -886,6 +911,44 @@ class GoogleSheetsService {
     } catch (e) {
       return {'success': false, 'message': 'Failed to update company status.'};
     }
+  }
+
+  /// Updates a job status (Active / Inactive) in Google Sheets Jobs sheet.
+  /// Sends action=update_job_status, jobId, and status.
+  Future<Map<String, dynamic>> updateJobStatus({
+    required String jobId,
+    required String status,
+  }) async {
+    try {
+      final uri = Uri.parse(baseUrl).replace(
+        queryParameters: {
+          'action': 'update_job_status',
+          'jobId': jobId.trim(),
+          'status': status.trim(),
+        },
+      );
+
+      final response = await http.get(uri).timeout(_timeout);
+      return _parseResponse(response);
+    } on SocketException {
+      return {'success': false, 'message': AppStrings.networkError};
+    } on TimeoutException {
+      return {'success': false, 'message': 'Updating job status timed out.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to update job status.'};
+    }
+  }
+
+  /// Fetches all jobs for a specific company (including both Active and Inactive).
+  Future<Map<String, dynamic>> getCompanyJobs({
+    required String companyId,
+    String? companyName,
+  }) async {
+    return getJobs(
+      includeInactive: true,
+      companyId: companyId,
+      company: companyName,
+    );
   }
 
   /// Fetches most demanded skills statistics for Admin Analytics (Phase 15).

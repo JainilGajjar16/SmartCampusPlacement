@@ -279,7 +279,12 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                     children: [
                       _DetailMetaRow(label: 'Application ID', value: app.applicationId),
                       const Divider(height: 14),
-                      _DetailMetaRow(label: 'Submitted On', value: app.appliedDate.isNotEmpty ? app.appliedDate : 'N/A'),
+                      _DetailMetaRow(
+                        label: 'Submitted On',
+                        value: app.appliedDate.isNotEmpty
+                            ? ApplicationStatusHelper.formatDisplayDateTime(app.appliedDate)
+                            : 'N/A',
+                      ),
                       if (app.jobType.isNotEmpty) ...[
                         const Divider(height: 14),
                         _DetailMetaRow(label: 'Job Type', value: app.jobType),
@@ -914,7 +919,9 @@ class _ApplicationCard extends StatelessWidget {
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                application.appliedDate,
+                                ApplicationStatusHelper.formatDisplayDate(
+                                  application.appliedDate,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(

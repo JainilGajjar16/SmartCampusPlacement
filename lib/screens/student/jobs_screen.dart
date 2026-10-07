@@ -74,7 +74,11 @@ class _JobsScreenState extends State<JobsScreen> {
     setState(() {
       _isLoading = false;
       if (response['success'] == true) {
-        _allJobs = (response['jobs'] as List<Job>?) ?? [];
+        final List<Job> fetchedJobs = (response['jobs'] as List<Job>?) ?? [];
+        _allJobs = fetchedJobs.where((j) {
+          final s = j.status.toLowerCase();
+          return s == 'active' || s == 'closed';
+        }).toList();
         _applySearchAndFilter();
       } else {
         if (_allJobs.isEmpty) {
@@ -1019,6 +1023,23 @@ class _JobCard extends StatelessWidget {
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF059669),
+                          ),
+                        ),
+                      ),
+                    if (job.isClosed)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Closed',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
                           ),
                         ),
                       ),

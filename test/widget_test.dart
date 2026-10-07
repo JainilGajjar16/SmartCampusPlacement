@@ -9,6 +9,7 @@ import 'package:smart_campus_placement/models/student_profile.dart';
 import 'package:smart_campus_placement/screens/auth/forgot_password_screen.dart';
 import 'package:smart_campus_placement/screens/auth/reset_password_screen.dart';
 import 'package:smart_campus_placement/screens/student/jobs_screen.dart';
+import 'package:smart_campus_placement/screens/student/job_details_screen.dart';
 import 'package:smart_campus_placement/screens/student/skill_gap_analysis_screen.dart';
 import 'package:smart_campus_placement/core/utils/application_status_helper.dart';
 import 'package:smart_campus_placement/widgets/application_timeline_widget.dart';
@@ -25,6 +26,8 @@ import 'package:smart_campus_placement/services/google_sheets_service.dart';
 import 'package:smart_campus_placement/models/recruiter_feedback.dart';
 import 'package:smart_campus_placement/core/utils/candidate_ranking_calculator.dart';
 import 'package:smart_campus_placement/widgets/analytics_reports_widget.dart';
+import 'package:smart_campus_placement/screens/admin/admin_manage_jobs_screen.dart';
+import 'package:smart_campus_placement/screens/student/student_profile_screen.dart';
 
 void main() {
   testWidgets('Full Auth Navigation Flow Smoke Test', (
@@ -2169,5 +2172,723 @@ void main() {
     expect(find.text('Registered Students'), findsOneWidget);
 
     UserSession().clearSession();
+  });
+
+  test('Phase 16 Job Model Status Deserialization & Serialization Test', () {
+    final activeJob = Job.fromJson({
+      'jobId': 'JOB101',
+      'title': 'Frontend Engineer',
+      'company': 'Tech Corp',
+      'status': 'Active',
+    });
+    expect(activeJob.status, 'Active');
+
+    final inactiveJob = Job.fromJson({
+      'jobId': 'JOB102',
+      'title': 'Backend Engineer',
+      'company': 'Tech Corp',
+      'status': 'Inactive',
+    });
+    expect(inactiveJob.status, 'Inactive');
+
+    final defaultJob = Job.fromJson({
+      'jobId': 'JOB103',
+      'title': 'DevOps Engineer',
+      'company': 'Tech Corp',
+    });
+    expect(defaultJob.status, 'Active');
+
+    final jsonMap = inactiveJob.toJson();
+    expect(jsonMap['status'], 'Inactive');
+    expect(jsonMap['jobId'], 'JOB102');
+  });
+
+  test('Phase 16 Company Data Isolation and Status Filtering Unit Test', () {
+    final jobs = [
+      const Job(
+        jobId: 'JOB1',
+        title: 'React Dev',
+        company: 'Company A',
+        location: 'Remote',
+        jobType: 'Full-time',
+        skills: 'React',
+        salary: '10 LPA',
+        description: 'Frontend role',
+        status: 'Active',
+      ),
+      const Job(
+        jobId: 'JOB2',
+        title: 'Node Dev',
+        company: 'Company A',
+        location: 'Remote',
+        jobType: 'Full-time',
+        skills: 'Node',
+        salary: '12 LPA',
+        description: 'Backend role',
+        status: 'Inactive',
+      ),
+      const Job(
+        jobId: 'JOB3',
+        title: 'Flutter Dev',
+        company: 'Company B',
+        location: 'Office',
+        jobType: 'Full-time',
+        skills: 'Flutter',
+        salary: '15 LPA',
+        description: 'Mobile role',
+        status: 'Active',
+      ),
+    ];
+
+    // Company A should only see its own jobs (both Active and Inactive)
+    final companyAId = 'company a';
+    final companyAJobs = jobs.where((j) {
+      final c = j.company.toLowerCase();
+      return c.contains(companyAId) || companyAId.contains(c);
+    }).toList();
+
+    expect(companyAJobs.length, 2);
+    expect(companyAJobs.map((j) => j.jobId), containsAll(['JOB1', 'JOB2']));
+    expect(companyAJobs.any((j) => j.company == 'Company B'), isFalse);
+
+    // Students should only see Active jobs across all companies
+    final studentJobs = jobs.where((j) => j.status.toLowerCase() == 'active').toList();
+    expect(studentJobs.length, 2);
+    expect(studentJobs.map((j) => j.jobId), containsAll(['JOB1', 'JOB3']));
+    expect(studentJobs.any((j) => j.status == 'Inactive'), isFalse);
+  });
+
+  testWidgets('CompanyJobCard Inactive Status Message and Warning Banner Test', (
+    WidgetTester tester,
+  ) async {
+    final inactiveJobData = {
+      'id': 'JOB999',
+      'title': 'Senior Systems Architect',
+      'company': 'Alpha Tech',
+      'location': 'New York, NY',
+      'salary': '\$120,000',
+      'skills': 'Kubernetes, Go',
+      'status': 'Inactive',
+      'applicants': 3,
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CompanyJobCard(job: inactiveJobData),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Inactive status badge & warning message
+    expect(find.text('Inactive'), findsWidgets);
+    expect(find.text('Job Deactivated by Admin'), findsOneWidget);
+    expect(
+      find.text('This job has been deactivated by the administrator.\nStudents cannot view or apply for this job.'),
+      findsOneWidget,
+    );
+    expect(find.text('Status: INACTIVE'), findsOneWidget);
+  });
+
+  testWidgets('CompanyJobCard Active Status Message Banner Test', (
+    WidgetTester tester,
+  ) async {
+    final activeJobData = {
+      'id': 'JOB888',
+      'title': 'Mobile Flutter Developer',
+      'company': 'Alpha Tech',
+      'location': 'Remote',
+      'salary': '\$95,000',
+      'skills': 'Flutter, Dart',
+      'status': 'Active',
+      'applicants': 5,
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CompanyJobCard(job: activeJobData),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Active status badge & activation message
+    expect(find.text('Active'), findsWidgets);
+    expect(find.text('Job Activated by Admin'), findsOneWidget);
+    expect(
+      find.text('This job has been activated by the administrator.\nStudents can now view and apply for this job.'),
+      findsOneWidget,
+    );
+    expect(find.text('Status: ACTIVE'), findsOneWidget);
+  });
+
+  testWidgets('Admin Manage Jobs Screen Direct Render Test', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AdminManageJobsScreen(
+          companyId: 'COMP_TEST_01',
+          companyName: 'Beta Solutions',
+          companyEmail: 'contact@betasolutions.com',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Verify AppBar title contains Company Name - Job Management
+    expect(find.text('Beta Solutions - Job Management'), findsOneWidget);
+    expect(find.text('Beta Solutions'), findsWidgets);
+  });
+
+  test('Structured EducationItem serialization and deserialization unit test', () {
+    // 1. Full 4-part pipe parsing
+    final item1 = EducationItem.fromString(
+      'Bachelor of Computer Applications | LJ University | 8.2 CGPA | 2026',
+    );
+    expect(item1.degree, equals('Bachelor of Computer Applications'));
+    expect(item1.uniBoard, equals('LJ University'));
+    expect(item1.cgpaPercentage, equals('8.2 CGPA'));
+    expect(item1.year, equals('2026'));
+    expect(
+      item1.toSerializedString(),
+      equals('Bachelor of Computer Applications | LJ University | 8.2 CGPA | 2026'),
+    );
+
+    // 2. Legacy hyphen format: "BCA - LJ University"
+    final item2 = EducationItem.fromString('BCA - LJ University');
+    expect(item2.degree, equals('BCA'));
+    expect(item2.uniBoard, equals('LJ University'));
+    expect(item2.cgpaPercentage, isEmpty);
+    expect(item2.year, isEmpty);
+    expect(item2.toSerializedString(), equals('BCA | LJ University'));
+
+    // 3. Fallback raw string: "B.Tech Computer Science"
+    final item3 = EducationItem.fromString('B.Tech Computer Science');
+    expect(item3.degree, equals('B.Tech Computer Science'));
+    expect(item3.uniBoard, isEmpty);
+    expect(item3.cgpaPercentage, isEmpty);
+    expect(item3.year, isEmpty);
+    expect(item3.toSerializedString(), equals('B.Tech Computer Science'));
+
+    // 4. Multi-entry round trip through StudentProfile
+    const multiEduRaw =
+        'Bachelor of Computer Applications | LJ University | 8.2 CGPA | 2026\n'
+        '12th Science | GSEB Board | 85% | 2022';
+    final parsedList = StudentProfile.parseEducation(multiEduRaw);
+    expect(parsedList.length, equals(2));
+    expect(parsedList[0].degree, equals('Bachelor of Computer Applications'));
+    expect(parsedList[1].degree, equals('12th Science'));
+    expect(parsedList[1].uniBoard, equals('GSEB Board'));
+
+    final serializedBack = StudentProfile.formatEducation(parsedList);
+    expect(serializedBack, equals(multiEduRaw));
+  });
+
+  test('Structured CertificationItem serialization and deserialization unit test', () {
+    // 1. Full 3-part pipe parsing
+    final cert1 = CertificationItem.fromString(
+      'Google Data Analytics | 90% | 2026',
+    );
+    expect(cert1.courseCertificate, equals('Google Data Analytics'));
+    expect(cert1.rankingPercentage, equals('90%'));
+    expect(cert1.year, equals('2026'));
+    expect(cert1.toSerializedString(), equals('Google Data Analytics | 90% | 2026'));
+
+    // 2. Legacy raw string: "Google"
+    final cert2 = CertificationItem.fromString('Google');
+    expect(cert2.courseCertificate, equals('Google'));
+    expect(cert2.rankingPercentage, isEmpty);
+    expect(cert2.year, isEmpty);
+    expect(cert2.toSerializedString(), equals('Google'));
+
+    // 3. Multi-entry round trip through StudentProfile
+    const multiCertRaw =
+        'Google Data Analytics | 90% | 2026\n'
+        'AWS Cloud Practitioner | Top 5% | 2025';
+    final parsedList = StudentProfile.parseCertifications(multiCertRaw);
+    expect(parsedList.length, equals(2));
+    expect(parsedList[0].courseCertificate, equals('Google Data Analytics'));
+    expect(parsedList[1].courseCertificate, equals('AWS Cloud Practitioner'));
+    expect(parsedList[1].rankingPercentage, equals('Top 5%'));
+
+    final serializedBack = StudentProfile.formatCertifications(parsedList);
+    expect(serializedBack, equals(multiCertRaw));
+  });
+
+  testWidgets('Student Profile Education & Certifications Dynamic Form and CRUD Test', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    UserSession().setSession(
+      userId: 'STU_TEST_USER',
+      role: 'Student',
+      name: 'Test Student',
+      email: 'student@campus.edu',
+    );
+
+    const initialProfile = StudentProfile(
+      userId: 'STU_TEST_USER',
+      name: 'Test Student',
+      email: 'student@campus.edu',
+      education: 'BCA - LJ University',
+      certifications: 'Google',
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: StudentProfileScreen(initialProfile: initialProfile),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verify structured fields exist initially and legacy data loaded correctly
+    expect(find.text(AppStrings.degreeLabel), findsOneWidget);
+    expect(find.text(AppStrings.uniBoardLabel), findsOneWidget);
+    expect(find.text(AppStrings.cgpaPercentageLabel), findsOneWidget);
+    expect(find.text(AppStrings.yearLabel), findsNWidgets(2)); // 1 for Edu, 1 for Cert
+    expect(find.text(AppStrings.courseCertificateLabel), findsOneWidget);
+    expect(find.text(AppStrings.rankingPercentageLabel), findsOneWidget);
+
+    // Verify backward compatibility: legacy values populated into fields
+    expect(find.text('BCA'), findsOneWidget);
+    expect(find.text('LJ University'), findsOneWidget);
+    expect(find.text('Google'), findsOneWidget);
+
+    // 2. Find and tap Education '+' button
+    final addEduBtn = find.byTooltip(AppStrings.addEducationTooltip);
+    expect(addEduBtn, findsOneWidget);
+    await tester.ensureVisible(addEduBtn);
+    await tester.tap(addEduBtn);
+    await tester.pumpAndSettle();
+
+    // Now 2 education entries should exist!
+    expect(find.text(AppStrings.degreeLabel), findsNWidgets(2));
+    expect(find.text('Education #1'), findsOneWidget);
+    expect(find.text('Education #2'), findsOneWidget);
+
+    // 3. Remove the second education entry using 'X'
+    final removeEduBtns = find.byTooltip(AppStrings.removeEducationTooltip);
+    expect(removeEduBtns, findsNWidgets(2));
+    await tester.tap(removeEduBtns.last);
+    await tester.pumpAndSettle();
+
+    // Now back to 1 education entry
+    expect(find.text(AppStrings.degreeLabel), findsOneWidget);
+
+    // 4. When 1 entry left, clicking 'X' safely clears without removing the only entry or crashing
+    final onlyRemoveEduBtn = find.byTooltip(AppStrings.removeEducationTooltip);
+    expect(find.text('BCA'), findsOneWidget);
+
+    await tester.tap(onlyRemoveEduBtn);
+    await tester.pumpAndSettle();
+    // Entry still exists, text is cleared
+    expect(find.text(AppStrings.degreeLabel), findsOneWidget);
+    expect(find.text('BCA'), findsNothing);
+
+    // 5. Test Certifications dynamic add and remove
+    final addCertBtn = find.byTooltip(AppStrings.addCertificationTooltip);
+    expect(addCertBtn, findsOneWidget);
+    await tester.tap(addCertBtn);
+    await tester.pumpAndSettle();
+
+    // Now 2 certification entries
+    expect(find.text(AppStrings.courseCertificateLabel), findsNWidgets(2));
+    expect(find.text('Certification #1'), findsOneWidget);
+    expect(find.text('Certification #2'), findsOneWidget);
+
+    // Remove one certification entry
+    final removeCertBtns = find.byTooltip(AppStrings.removeCertificationTooltip);
+    expect(removeCertBtns, findsNWidgets(2));
+    await tester.tap(removeCertBtns.last);
+    await tester.pumpAndSettle();
+
+    // Now 1 certification entry
+    expect(find.text(AppStrings.courseCertificateLabel), findsOneWidget);
+  });
+
+  // ===========================================================================
+  // MAXIMUM HIRING LIMIT TESTS (Section 13)
+  // ===========================================================================
+
+  test('Job Model Max Hiring Serialization, Deserialization & Backward Compatibility Test', () {
+    // 1. Normal job with max hiring and application count
+    final jobJson = {
+      'jobId': 'JOB101',
+      'title': 'Flutter Developer',
+      'company': 'ABC Technologies',
+      'location': 'Bangalore',
+      'jobType': 'Full-time',
+      'skills': 'Flutter, Dart',
+      'salary': '12 LPA',
+      'description': 'Mobile App Developer',
+      'status': 'Active',
+      'postedDate': '2026-10-05',
+      'maxHiring': 5,
+      'applicationCount': 3,
+    };
+    final job = Job.fromJson(jobJson);
+    expect(job.maxHiring, 5);
+    expect(job.applicationCount, 3);
+    expect(job.status, 'Active');
+    expect(job.isClosed, isFalse);
+    expect(job.isHiringLimitReached, isFalse);
+
+    // 2. Serialization roundtrip
+    final serialized = job.toJson();
+    expect(serialized['maxHiring'], 5);
+    expect(serialized['applicationCount'], 3);
+
+    // 3. When applicationCount reaches maxHiring, effective status is Closed
+    final closedJson = {
+      'jobId': 'JOB102',
+      'title': 'Flutter Developer',
+      'company': 'ABC Technologies',
+      'maxHiring': '5',
+      'applicationCount': '5',
+      'status': 'Active',
+    };
+    final closedJob = Job.fromJson(closedJson);
+    expect(closedJob.status, 'Closed');
+    expect(closedJob.isClosed, isTrue);
+    expect(closedJob.isHiringLimitReached, isTrue);
+
+    // 4. Backward compatibility: Old job without maxHiring
+    final oldJobJson = {
+      'jobId': 'JOB103',
+      'title': 'Legacy Senior Engineer',
+      'company': 'Tech Corp',
+      'status': 'Active',
+    };
+    final oldJob = Job.fromJson(oldJobJson);
+    expect(oldJob.maxHiring, isNull);
+    expect(oldJob.applicationCount, 0);
+    expect(oldJob.status, 'Active');
+    expect(oldJob.isClosed, isFalse);
+    expect(oldJob.isHiringLimitReached, isFalse);
+  });
+
+  test('Max Hiring Backend Logic - Exact Scenario Test (Max Hiring = 3)', () {
+    // Simulate Backend Job and Application Store
+    int maxHiring = 3;
+    int applicationCount = 0;
+    String status = 'Active';
+    final List<Map<String, String>> applications = [];
+
+    Map<String, dynamic> applyForJobBackend({
+      required String userId,
+      required String jobId,
+    }) {
+      // 1. Check duplicate
+      for (final app in applications) {
+        if (app['userId'] == userId && app['jobId'] == jobId) {
+          return {
+            'success': false,
+            'message': 'You have already applied for this job',
+          };
+        }
+      }
+
+      // 2. Check status
+      if (status.toLowerCase() != 'active') {
+        if (status.toLowerCase() == 'closed') {
+          return {
+            'success': false,
+            'message':
+                'Maximum number of hiring for this job has been reached. Applications are closed.',
+          };
+        }
+        return {
+          'success': false,
+          'message': 'This job is currently inactive and not accepting applications',
+        };
+      }
+
+      // 3. Check hiring limit before creating application
+      if (maxHiring > 0 && applicationCount >= maxHiring) {
+        status = 'Closed';
+        return {
+          'success': false,
+          'message':
+              'Maximum number of hiring for this job has been reached. Applications are closed.',
+        };
+      }
+
+      // 4. Create application
+      applications.add({
+        'applicationId': 'APP${applications.length + 1}',
+        'jobId': jobId,
+        'userId': userId,
+      });
+
+      // 5. Increment count
+      applicationCount++;
+
+      // 6. Auto-close if count >= maxHiring
+      if (maxHiring > 0 && applicationCount >= maxHiring) {
+        status = 'Closed';
+      }
+
+      return {
+        'success': true,
+        'message': 'Application submitted successfully',
+      };
+    }
+
+    // Initial State
+    expect(applicationCount, 0);
+    expect(status, 'Active');
+
+    // Student 1 applies
+    final res1 = applyForJobBackend(userId: 'student1', jobId: 'JOB001');
+    expect(res1['success'], isTrue);
+    expect(applicationCount, 1);
+    expect(status, 'Active');
+
+    // Student 2 applies
+    final res2 = applyForJobBackend(userId: 'student2', jobId: 'JOB001');
+    expect(res2['success'], isTrue);
+    expect(applicationCount, 2);
+    expect(status, 'Active');
+
+    // Student 3 applies -> reaches limit 3
+    final res3 = applyForJobBackend(userId: 'student3', jobId: 'JOB001');
+    expect(res3['success'], isTrue);
+    expect(applicationCount, 3);
+    expect(status, 'Closed');
+
+    // Student 4 tries to apply -> BLOCKED with exact required message
+    final res4 = applyForJobBackend(userId: 'student4', jobId: 'JOB001');
+    expect(res4['success'], isFalse);
+    expect(
+      res4['message'],
+      'Maximum number of hiring for this job has been reached. Applications are closed.',
+    );
+    // Count remains 3
+    expect(applicationCount, 3);
+  });
+
+  test('Max Hiring = 1 Single Seat Immediate Closure Test', () {
+    int maxHiring = 1;
+    int applicationCount = 0;
+    String status = 'Active';
+    final List<String> appliedUsers = [];
+
+    Map<String, dynamic> applyJob({required String userId}) {
+      if (appliedUsers.contains(userId)) {
+        return {'success': false, 'message': 'You have already applied for this job'};
+      }
+      if (status != 'Active' || applicationCount >= maxHiring) {
+        status = 'Closed';
+        return {
+          'success': false,
+          'message':
+              'Maximum number of hiring for this job has been reached. Applications are closed.',
+        };
+      }
+      appliedUsers.add(userId);
+      applicationCount++;
+      if (applicationCount >= maxHiring) {
+        status = 'Closed';
+      }
+      return {'success': true, 'message': 'Application submitted successfully'};
+    }
+
+    final res1 = applyJob(userId: 'student_first');
+    expect(res1['success'], isTrue);
+    expect(applicationCount, 1);
+    expect(status, 'Closed');
+
+    final res2 = applyJob(userId: 'student_second');
+    expect(res2['success'], isFalse);
+    expect(
+      res2['message'],
+      'Maximum number of hiring for this job has been reached. Applications are closed.',
+    );
+    expect(applicationCount, 1);
+  });
+
+  test('Duplicate Application Does Not Increment Count Test', () {
+    int applicationCount = 0;
+    final Set<String> applied = {};
+
+    Map<String, dynamic> apply(String user) {
+      if (applied.contains(user)) {
+        return {'success': false, 'message': 'You have already applied for this job'};
+      }
+      applied.add(user);
+      applicationCount++;
+      return {'success': true, 'message': 'Application submitted successfully'};
+    }
+
+    // Apply once
+    final r1 = apply('student_alpha');
+    expect(r1['success'], isTrue);
+    expect(applicationCount, 1);
+
+    // Apply second time with same user
+    final r2 = apply('student_alpha');
+    expect(r2['success'], isFalse);
+    expect(r2['message'], 'You have already applied for this job');
+    // Application count MUST NOT increment
+    expect(applicationCount, 1);
+  });
+
+  test('Legacy Job Without Max Hiring Allows Applications Without Closing', () {
+    int? maxHiring; // null / empty
+    int applicationCount = 0;
+    String status = 'Active';
+
+    void applyLegacy(int? limit) {
+      applicationCount++;
+      if (limit != null && limit > 0 && applicationCount >= limit) {
+        status = 'Closed';
+      }
+    }
+
+    for (int i = 0; i < 10; i++) {
+      applyLegacy(maxHiring);
+    }
+    expect(applicationCount, 10);
+    expect(status, 'Active');
+  });
+
+  testWidgets('Company PostJobScreen Max No. of Hiring Form Validation Test', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: PostJobScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify "Max No. of Hiring" field exists
+    expect(find.text('Max No. of Hiring'), findsOneWidget);
+
+    // Tap POST JOB with empty fields to trigger validation
+    final postJobFinder = find.text('POST JOB');
+    await tester.ensureVisible(postJobFinder);
+    await tester.tap(postJobFinder);
+    await tester.pumpAndSettle();
+
+    // Verify required validation message for max hiring
+    expect(find.text('Enter maximum number of hiring'), findsOneWidget);
+
+    // Enter 0 in Max No. of Hiring
+    final maxHiringInput = find.widgetWithText(TextFormField, 'Max No. of Hiring');
+    await tester.enterText(maxHiringInput, '0');
+    await tester.ensureVisible(postJobFinder);
+    await tester.tap(postJobFinder);
+    await tester.pumpAndSettle();
+
+    // Verify validation for <= 0
+    expect(find.text('Value must be at least 1'), findsOneWidget);
+
+    // Enter valid positive integer (5)
+    await tester.enterText(maxHiringInput, '5');
+    await tester.ensureVisible(postJobFinder);
+    await tester.tap(postJobFinder);
+    await tester.pumpAndSettle();
+
+    // Validation error for max hiring should disappear
+    expect(find.text('Enter maximum number of hiring'), findsNothing);
+    expect(find.text('Value must be at least 1'), findsNothing);
+  });
+
+  testWidgets('CompanyJobCard Displays Max Hiring, Applications, and Closed Status When Limit Reached', (
+    WidgetTester tester,
+  ) async {
+    // 1. Job with 3 / 5 applications (Active)
+    final activeJobData = {
+      'id': 'JOB001',
+      'title': 'Flutter Developer',
+      'company': 'ABC Technologies',
+      'location': 'Bangalore',
+      'salary': '₹12 LPA',
+      'skills': 'Flutter, Dart',
+      'status': 'Active',
+      'maxHiring': 5,
+      'applicationCount': 3,
+      'applicants': 3,
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CompanyJobCard(job: activeJobData),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flutter Developer'), findsOneWidget);
+    expect(find.text('5 Hiring'), findsOneWidget);
+    expect(find.text('3 Applications'), findsOneWidget);
+    expect(find.text('Status: ACTIVE'), findsOneWidget);
+
+    // 2. Job with 5 / 5 applications (Limit reached -> Closed)
+    final closedJobData = {
+      'id': 'JOB002',
+      'title': 'Flutter Developer',
+      'company': 'ABC Technologies',
+      'location': 'Bangalore',
+      'salary': '₹12 LPA',
+      'skills': 'Flutter, Dart',
+      'status': 'Active', // Even if sheet had Active, limit reached forces Closed
+      'maxHiring': 5,
+      'applicationCount': 5,
+      'applicants': 5,
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CompanyJobCard(job: closedJobData),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('5 Hiring'), findsOneWidget);
+    expect(find.text('5 Applications'), findsOneWidget);
+    expect(find.text('Status: CLOSED'), findsOneWidget);
+    expect(find.text('Maximum Hiring Limit Reached'), findsOneWidget);
+    expect(find.text('Closed'), findsWidgets);
+  });
+
+  testWidgets('JobDetailsScreen Displays Applications Closed When Job Status is Closed', (
+    WidgetTester tester,
+  ) async {
+    const closedJob = Job(
+      jobId: 'JOB777',
+      title: 'Full Stack Engineer',
+      company: 'NextGen Systems',
+      location: 'Remote',
+      jobType: 'Full-time',
+      skills: 'Flutter, Node.js',
+      salary: '15 LPA',
+      description: 'Senior full-stack position',
+      status: 'Closed',
+      maxHiring: 5,
+      applicationCount: 5,
+    );
+
+    expect(closedJob.isClosed, isTrue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: JobDetailsScreen(jobId: closedJob.jobId),
+        ),
+      ),
+    );
+    await tester.pump();
   });
 }

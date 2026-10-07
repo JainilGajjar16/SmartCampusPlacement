@@ -80,6 +80,19 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       return;
     }
 
+    if (_job != null &&
+        (_job!.isClosed || _job!.status.toLowerCase() != 'active')) {
+      final msg = _job!.isClosed
+          ? 'Maximum number of hiring for this job has been reached. Applications are closed.'
+          : 'This job is currently inactive and not accepting applications.';
+      AppSnackBar.show(
+        context,
+        message: msg,
+        isError: true,
+      );
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -101,13 +114,19 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         message: response['message']?.toString() ??
             AppStrings.applicationSubmittedSuccess,
       );
+      // Refresh job details so the updated status is reflected
+      _fetchJobDetails();
     } else {
+      final backendMessage = response['message']?.toString();
       AppSnackBar.show(
         context,
-        message: response['message']?.toString() ??
-            AppStrings.alreadyAppliedForJob,
+        message: (backendMessage != null && backendMessage.isNotEmpty)
+            ? backendMessage
+            : AppStrings.alreadyAppliedForJob,
         isError: true,
       );
+      // Refresh job details in case job has reached maximum hiring limit
+      _fetchJobDetails();
     }
   }
 
@@ -474,10 +493,23 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
             ],
           ),
           child: CustomButton(
-            text: AppStrings.applyForJob,
-            icon: Icons.send_rounded,
+            text: (_job != null &&
+                    (_job!.isClosed ||
+                        _job!.status.toLowerCase() != 'active'))
+                ? (_job!.isClosed ? 'Applications Closed' : 'Job Inactive')
+                : AppStrings.applyForJob,
+            icon: (_job != null &&
+                    (_job!.isClosed ||
+                        _job!.status.toLowerCase() != 'active'))
+                ? Icons.block_rounded
+                : Icons.send_rounded,
             isLoading: _isSubmitting,
-            onPressed: _isSubmitting ? null : _onApplyPressed,
+            onPressed: (_isSubmitting ||
+                    (_job != null &&
+                        (_job!.isClosed ||
+                            _job!.status.toLowerCase() != 'active')))
+                ? null
+                : _onApplyPressed,
           ),
         ),
       ],

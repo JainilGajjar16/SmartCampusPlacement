@@ -263,11 +263,15 @@ class ApplicationTimelineWidget extends StatelessWidget {
                               ),
                             ),
                             if (index == 0 && appliedDate.isNotEmpty)
-                              Text(
-                                appliedDate,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
+                              Flexible(
+                                child: Text(
+                                  ApplicationStatusHelper.formatDisplayDateTime(appliedDate),
+                                  textAlign: TextAlign.end,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  softWrap: true,
                                 ),
                               ),
                           ],

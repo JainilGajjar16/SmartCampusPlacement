@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/application_status_helper.dart';
@@ -43,8 +44,11 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
     final String currentCompanyName = session.name ?? '';
 
     try {
-      // 1. Fetch real jobs from Google Sheets
-      final jobsResult = await GoogleSheetsService().getJobs();
+      // 1. Fetch real jobs from Google Sheets for this company (Active & Inactive)
+      final jobsResult = await GoogleSheetsService().getCompanyJobs(
+        companyId: currentCompanyId,
+        companyName: currentCompanyName,
+      );
       final List<Job> allJobs = jobsResult['jobs'] as List<Job>? ?? [];
 
       final companyJobs = allJobs.where((job) {
@@ -159,6 +163,13 @@ class _CompanyDashboardState extends State<CompanyDashboard> {
         ),
         actions: [
           ThemeToggleButton(themeProvider: globalThemeProvider),
+          IconButton(
+            tooltip: 'Notifications',
+            icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+            onPressed: () {
+              Navigator.pushNamed(context, AppRoutes.notifications);
+            },
+          ),
           IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh, color: AppColors.primary),
@@ -594,6 +605,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
   final _skillsController = TextEditingController();
   final _salaryController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _maxHiringController = TextEditingController();
   bool _isSubmitting = false;
 
   @override
@@ -613,6 +625,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
     _skillsController.dispose();
     _salaryController.dispose();
     _descriptionController.dispose();
+    _maxHiringController.dispose();
     super.dispose();
   }
 
@@ -622,6 +635,8 @@ class _PostJobScreenState extends State<PostJobScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      final maxHiring = int.tryParse(_maxHiringController.text.trim());
+
       final res = await GoogleSheetsService().postJob(
         title: _jobTitleController.text.trim(),
         company: _companyNameController.text.trim(),
@@ -629,6 +644,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
         skills: _skillsController.text.trim(),
         salary: _salaryController.text.trim(),
         description: _descriptionController.text.trim(),
+        maxHiring: maxHiring,
       );
 
       if (!mounted) return;
@@ -740,6 +756,30 @@ class _PostJobScreenState extends State<PostJobScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _maxHiringController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Max No. of Hiring',
+                  hintText: 'e.g. 5',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.people_alt_rounded),
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Enter maximum number of hiring';
+                  }
+                  final parsed = int.tryParse(v.trim());
+                  if (parsed == null || parsed <= 0) {
+                    return 'Value must be at least 1';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _descriptionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
@@ -815,7 +855,10 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
     final String cName = session.name?.toLowerCase() ?? '';
 
     try {
-      final res = await GoogleSheetsService().getJobs();
+      final res = await GoogleSheetsService().getCompanyJobs(
+        companyId: session.userId ?? '',
+        companyName: session.name,
+      );
       final List<Job> allJobs = res['jobs'] as List<Job>? ?? [];
 
       final myJobs = allJobs.where((j) {
@@ -887,10 +930,11 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                 itemCount: _jobs.length,
                 itemBuilder: (context, index) {
                   final job = _jobs[index];
-                  final count = _applicantCounts[job.jobId] ?? 0;
+                  final count = _applicantCounts[job.jobId] ?? job.applicationCount;
                   return CompanyJobCard(
                     job: {
                       'id': job.jobId,
+                      'jobId': job.jobId,
                       'title': job.title,
                       'company': job.company,
                       'location': job.location,
@@ -899,6 +943,8 @@ class _MyJobsScreenState extends State<MyJobsScreen> {
                       'description': job.description,
                       'status': job.status,
                       'postedDate': job.postedDate,
+                      'maxHiring': job.maxHiring,
+                      'applicationCount': count,
                       'applicants': count,
                     },
                   );
@@ -918,8 +964,23 @@ class CompanyJobCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = job['status'] ?? 'Active';
-    final isInactive = status.toString().toLowerCase() != 'active';
+    final rawStatus = (job['status'] ?? 'Active').toString().trim();
+    final rawMax = job['maxHiring'] ?? job['max_hiring'];
+    final int? maxHiring =
+        rawMax != null ? int.tryParse(rawMax.toString().trim()) : null;
+    final rawApps =
+        job['applicants'] ?? job['applicationCount'] ?? job['applications'];
+    final int applications =
+        rawApps != null ? (int.tryParse(rawApps.toString().trim()) ?? 0) : 0;
+
+    final bool isLimitReached =
+        maxHiring != null && maxHiring > 0 && applications >= maxHiring;
+    String status = rawStatus;
+    if (isLimitReached && status.toLowerCase() == 'active') {
+      status = 'Closed';
+    }
+    final bool isClosed = status.toLowerCase() == 'closed';
+    final bool isInactive = status.toLowerCase() == 'inactive';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -948,15 +1009,19 @@ class CompanyJobCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: isInactive
-                        ? Colors.grey.withValues(alpha: 0.1)
-                        : Colors.green.withValues(alpha: 0.1),
+                    color: isClosed
+                        ? Colors.orange.withValues(alpha: 0.12)
+                        : (isInactive
+                            ? Colors.grey.withValues(alpha: 0.1)
+                            : Colors.green.withValues(alpha: 0.1)),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     status,
                     style: TextStyle(
-                      color: isInactive ? Colors.grey[700] : Colors.green,
+                      color: isClosed
+                          ? Colors.orange.shade800
+                          : (isInactive ? Colors.grey[700] : Colors.green),
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
@@ -973,15 +1038,26 @@ class CompanyJobCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Row(
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
               children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(job['location'] ?? 'Location'),
-                const SizedBox(width: 16),
-                const Icon(Icons.attach_money, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(job['salary'] ?? 'Salary'),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(job['location'] ?? 'Location'),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.attach_money, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(job['salary'] ?? 'Salary'),
+                  ],
+                ),
               ],
             ),
             if (job['skills'] != null &&
@@ -995,6 +1071,161 @@ class CompanyJobCard extends StatelessWidget {
                 ),
               ),
             ],
+            // Hiring & Application statistics row
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6.0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  if (maxHiring != null && maxHiring > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: Colors.blue.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.people_alt_rounded,
+                              size: 14, color: Colors.blue),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$maxHiring Hiring',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isLimitReached || isClosed)
+                          ? Colors.orange.withValues(alpha: 0.08)
+                          : Colors.purple.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: (isLimitReached || isClosed)
+                            ? Colors.orange.withValues(alpha: 0.25)
+                            : Colors.purple.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          size: 14,
+                          color: (isLimitReached || isClosed)
+                              ? Colors.orange.shade800
+                              : Colors.purple,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$applications Applications',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: (isLimitReached || isClosed)
+                                ? Colors.orange.shade800
+                                : Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Admin Activation / Deactivation Status Banner / Hiring Limit Banner
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 10, bottom: 6),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isClosed
+                    ? Colors.orange.withValues(alpha: 0.08)
+                    : (isInactive
+                        ? Colors.red.withValues(alpha: 0.08)
+                        : Colors.green.withValues(alpha: 0.08)),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isClosed
+                      ? Colors.orange.withValues(alpha: 0.3)
+                      : (isInactive
+                          ? Colors.red.withValues(alpha: 0.3)
+                          : Colors.green.withValues(alpha: 0.3)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isClosed
+                            ? Icons.lock_clock_rounded
+                            : (isInactive
+                                ? Icons.warning_amber_rounded
+                                : Icons.check_circle_outline),
+                        size: 16,
+                        color: isClosed
+                            ? Colors.orange.shade800
+                            : (isInactive ? Colors.red : Colors.green.shade700),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isClosed
+                            ? 'Maximum Hiring Limit Reached'
+                            : (isInactive
+                                ? 'Job Deactivated by Admin'
+                                : 'Job Activated by Admin'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isClosed
+                              ? Colors.orange.shade900
+                              : (isInactive
+                                  ? Colors.red
+                                  : Colors.green.shade800),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isClosed
+                        ? 'The maximum number of hiring ($maxHiring) for this job has been reached.\nApplications are now closed.'
+                        : (isInactive
+                            ? 'This job has been deactivated by the administrator.\nStudents cannot view or apply for this job.'
+                            : 'This job has been activated by the administrator.\nStudents can now view and apply for this job.'),
+                    style: const TextStyle(fontSize: 11, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isClosed
+                        ? 'Status: CLOSED'
+                        : (isInactive ? 'Status: INACTIVE' : 'Status: ACTIVE'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isClosed
+                          ? Colors.orange.shade900
+                          : (isInactive ? Colors.red : Colors.green.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1940,6 +2171,9 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                       ),
                                     ),
                                     ActionChip(
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
                                       avatar: Icon(
                                         ApplicationStatusHelper.getStatusIcon(
                                           rawStatus,
@@ -2072,13 +2306,16 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                           color: Colors.orange,
                                         ),
                                         const SizedBox(width: 8),
-                                        Text(
-                                          'Applied: $appliedDate',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.getTextSecondary(
-                                              context,
+                                        Expanded(
+                                          child: Text(
+                                            'Applied: ${ApplicationStatusHelper.formatDisplayDateTime(appliedDate)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.getTextSecondary(
+                                                context,
+                                              ),
                                             ),
+                                            softWrap: true,
                                           ),
                                         ),
                                       ],
@@ -2125,9 +2362,11 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                 const SizedBox(height: 10),
 
                                 // Candidate Score & Recruiter Feedback Display
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  crossAxisAlignment:
+                                      WrapCrossAlignment.center,
                                   children: [
                                     // Candidate Rank Score Badge
                                     Container(

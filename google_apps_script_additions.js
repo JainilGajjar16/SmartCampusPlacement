@@ -26,6 +26,8 @@
  *      return handleGetAdminStudents(ss, e.parameter);
  *    } else if (action === 'get_admin_companies') {
  *      return handleGetAdminCompanies(ss, e.parameter);
+ *    } else if (action === 'update_job_status') {
+ *      return handleUpdateJobStatus(ss, e.parameter);
  *    } else if (action === 'get_most_demanded_skills') {
  *      return handleGetMostDemandedSkills(ss, e.parameter);
  *    } else if (action === 'get_readiness_distribution') {
@@ -55,6 +57,7 @@
 // Phase 6 Functions
 function handleGetJobs(ss, params) {
   try {
+    params = params || {};
     var sheet = ss.getSheetByName("Jobs");
     if (!sheet) {
       return jsonResponse({ success: true, jobs: [] });
@@ -65,6 +68,9 @@ function handleGetJobs(ss, params) {
     }
 
     var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var includeInactive = (params.includeInactive === "true" || params.includeInactive === true || params.all === "true");
+    var filterCompany = (params.company || params.companyName || params.companyId || "").toString().trim().toLowerCase();
 
     var jobs = [];
     for (var i = 1; i < data.length; i++) {
@@ -80,20 +86,54 @@ function handleGetJobs(ss, params) {
         return "";
       };
 
-      var jobId = getVal(["jobid", "id"]);
-      var title = getVal(["title", "jobtitle"]);
-      var company = getVal(["company", "companyname"]);
+      var jobId = getVal(["jobid", "id", "job id"]);
+      var title = getVal(["title", "jobtitle", "job title"]);
+      var company = getVal(["company", "companyname", "company name"]);
       var location = getVal(["location"]);
-      var jobType = getVal(["jobtype", "type"]);
-      var skills = getVal(["skills", "requiredskills", "skillsrequired"]);
+      var jobType = getVal(["jobtype", "type", "job type"]);
+      var skills = getVal(["skills", "requiredskills", "skillsrequired", "required skills"]);
       var salary = getVal(["salary", "stipend"]);
-      var description = getVal(["description", "jobdescription"]);
-      var status = getVal(["status", "jobstatus"]);
-      var postedDate = getVal(["posteddate", "date", "createdat"]);
+      var description = getVal(["description", "jobdescription", "job description"]);
+      var status = getVal(["status", "jobstatus", "job status"]);
+      var postedDate = getVal(["posteddate", "date", "createdat", "posted date"]);
+
+      var maxHiringRaw = getVal(["max hiring", "maxhiring", "max_hiring", "max no of hiring", "max hirings"]);
+      var maxHiring = parseInt(maxHiringRaw, 10);
+      if (isNaN(maxHiring) || maxHiring <= 0) {
+        maxHiring = null;
+      }
+
+      var appCountRaw = getVal(["application count", "applicationcount", "application_count", "applications", "applicants"]);
+      var applicationCount = parseInt(appCountRaw, 10);
+      if (isNaN(applicationCount) || applicationCount < 0) {
+        applicationCount = 0;
+      }
 
       var statusLower = status.toLowerCase();
-      if (statusLower && statusLower !== "active") {
-        continue;
+
+      // If max hiring is defined and applications reached limit, effective status is Closed
+      if (maxHiring !== null && maxHiring > 0 && applicationCount >= maxHiring) {
+        if (statusLower === "active") {
+          status = "Closed";
+          statusLower = "closed";
+        }
+      }
+
+      // If company filter is provided, ensure this job belongs to that company
+      if (filterCompany) {
+        var compLower = company.toLowerCase();
+        if (compLower !== filterCompany && compLower.indexOf(filterCompany) === -1 && filterCompany.indexOf(compLower) === -1) {
+          continue;
+        }
+      }
+
+      // If inactive jobs are not explicitly included, filter them out:
+      // Active and Closed jobs are returned so students can view them (with Closed indicator).
+      // Inactive (admin deactivated) jobs are excluded for students.
+      if (!includeInactive) {
+        if (statusLower !== "active" && statusLower !== "closed") {
+          continue;
+        }
       }
 
       if (jobId || title) {
@@ -102,12 +142,14 @@ function handleGetJobs(ss, params) {
           title: title,
           company: company,
           location: location,
-          jobType: jobType,
+          jobType: jobType || "Full-time",
           skills: skills,
           salary: salary,
           description: description,
           status: status || "Active",
-          postedDate: postedDate
+          postedDate: postedDate,
+          maxHiring: maxHiring,
+          applicationCount: applicationCount
         });
       }
     }
@@ -154,8 +196,27 @@ function handleGetJobDetails(ss, params) {
       if (jobId.toLowerCase() === jobIdReq.toLowerCase()) {
         var status = getVal(["status", "jobstatus"]);
         var statusLower = status.toLowerCase();
-        if (statusLower && statusLower !== "active") {
+        if (statusLower && statusLower !== "active" && statusLower !== "closed") {
           return jsonResponse({ success: false, message: "Job not found" });
+        }
+
+        var maxHiringRaw = getVal(["max hiring", "maxhiring", "max_hiring", "max no of hiring", "max hirings"]);
+        var maxHiring = parseInt(maxHiringRaw, 10);
+        if (isNaN(maxHiring) || maxHiring <= 0) {
+          maxHiring = null;
+        }
+
+        var appCountRaw = getVal(["application count", "applicationcount", "application_count", "applications", "applicants"]);
+        var applicationCount = parseInt(appCountRaw, 10);
+        if (isNaN(applicationCount) || applicationCount < 0) {
+          applicationCount = 0;
+        }
+
+        if (maxHiring !== null && maxHiring > 0 && applicationCount >= maxHiring) {
+          if (statusLower === "active") {
+            status = "Closed";
+            statusLower = "closed";
+          }
         }
 
         var jobObj = {
@@ -168,7 +229,9 @@ function handleGetJobDetails(ss, params) {
           salary: getVal(["salary", "stipend"]),
           description: getVal(["description", "jobdescription"]),
           status: status || "Active",
-          postedDate: getVal(["posteddate", "date", "createdat"])
+          postedDate: getVal(["posteddate", "date", "createdat"]),
+          maxHiring: maxHiring,
+          applicationCount: applicationCount
         };
 
         return jsonResponse({ success: true, job: jobObj });
@@ -183,7 +246,18 @@ function handleGetJobDetails(ss, params) {
 
 // Phase 7 Functions
 function applyForJob(e) {
+  var lock = LockService.getScriptLock();
+  var lockAcquired = false;
   try {
+    // Acquire lock to prevent race conditions during concurrent applications
+    lockAcquired = lock.tryLock(20000);
+    if (!lockAcquired) {
+      return jsonResponse({
+        success: false,
+        message: "Server is currently busy. Please try submitting your application again."
+      });
+    }
+
     var ss;
     var params;
 
@@ -206,40 +280,145 @@ function applyForJob(e) {
       return jsonResponse({ success: false, message: "Spreadsheet context missing" });
     }
 
-    var sheet = ss.getSheetByName("Applications");
-    if (!sheet) {
-      sheet = ss.insertSheet("Applications");
-      sheet.appendRow(["Application ID", "Job ID", "User ID", "Applied Date", "Status"]);
+    // 1. Applications Sheet setup & duplicate application check
+    var appSheet = ss.getSheetByName("Applications");
+    if (!appSheet) {
+      appSheet = ss.insertSheet("Applications");
+      appSheet.appendRow(["Application ID", "Job ID", "User ID", "Applied Date", "Status"]);
     }
 
-    var data = sheet.getDataRange().getValues();
-    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+    var appData = appSheet.getDataRange().getValues();
+    var appHeaders = appData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
 
-    var jobIdCol = headers.indexOf("job id");
-    if (jobIdCol === -1) jobIdCol = headers.indexOf("jobid");
-    if (jobIdCol === -1) jobIdCol = 1;
+    var appIdCol = appHeaders.indexOf("job id");
+    if (appIdCol === -1) appIdCol = appHeaders.indexOf("jobid");
+    if (appIdCol === -1) appIdCol = 1;
 
-    var userIdCol = headers.indexOf("user id");
-    if (userIdCol === -1) userIdCol = headers.indexOf("userid");
-    if (userIdCol === -1) userIdCol = 2;
+    var appUserCol = appHeaders.indexOf("user id");
+    if (appUserCol === -1) appUserCol = appHeaders.indexOf("userid");
+    if (appUserCol === -1) appUserCol = 2;
 
-    for (var i = 1; i < data.length; i++) {
-      var row = data[i];
-      var rJobId = row[jobIdCol] ? row[jobIdCol].toString().trim().toLowerCase() : "";
-      var rUserId = row[userIdCol] ? row[userIdCol].toString().trim().toLowerCase() : "";
+    for (var i = 1; i < appData.length; i++) {
+      var rJobId = appData[i][appIdCol] ? appData[i][appIdCol].toString().trim().toLowerCase() : "";
+      var rUserId = appData[i][appUserCol] ? appData[i][appUserCol].toString().trim().toLowerCase() : "";
 
       if (rJobId === jobId.toLowerCase() && rUserId === userId.toLowerCase()) {
         return jsonResponse({ success: false, message: "You have already applied for this job" });
       }
     }
 
+    // 2. Validate Target Job & Max Hiring Limit
+    var jobsSheet = ss.getSheetByName("Jobs");
+    if (!jobsSheet) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    var jData = jobsSheet.getDataRange().getValues();
+    if (jData.length <= 1) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    var jHeaders = jData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var findCol = function (names, fallback) {
+      for (var k = 0; k < names.length; k++) {
+        var idx = jHeaders.indexOf(names[k].toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      return fallback;
+    };
+
+    var jIdCol = findCol(["job id", "jobid", "id"], 0);
+    var jStatusCol = findCol(["status", "job status", "jobstatus"], 8);
+
+    // Ensure Max Hiring and Application Count columns exist in header
+    var jMaxCol = findCol(["max hiring", "maxhiring", "max_hiring", "max no of hiring"], -1);
+    if (jMaxCol === -1) {
+      jobsSheet.getRange(1, jHeaders.length + 1).setValue("Max Hiring");
+      jHeaders.push("max hiring");
+      jMaxCol = jHeaders.length - 1;
+    }
+
+    var jCountCol = findCol(["application count", "applicationcount", "application_count", "applications"], -1);
+    if (jCountCol === -1) {
+      jobsSheet.getRange(1, jHeaders.length + 1).setValue("Application Count");
+      jHeaders.push("application count");
+      jCountCol = jHeaders.length - 1;
+    }
+
+    var targetJobRowIndex = -1;
+    var targetJobRow = null;
+
+    for (var j = 1; j < jData.length; j++) {
+      var rowId = jData[j][jIdCol] ? jData[j][jIdCol].toString().trim().toLowerCase() : "";
+      if (rowId === jobId.toLowerCase()) {
+        targetJobRowIndex = j + 1; // 1-based row index in sheet
+        targetJobRow = jData[j];
+        break;
+      }
+    }
+
+    if (targetJobRowIndex === -1 || !targetJobRow) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    var currentStatus = targetJobRow[jStatusCol] ? targetJobRow[jStatusCol].toString().trim() : "Active";
+    var currentStatusLower = currentStatus.toLowerCase();
+
+    // Read Max Hiring and Application Count
+    var maxHiringRaw = (jMaxCol < targetJobRow.length && targetJobRow[jMaxCol] !== undefined && targetJobRow[jMaxCol] !== null)
+      ? targetJobRow[jMaxCol].toString().trim()
+      : "";
+    var maxHiring = parseInt(maxHiringRaw, 10);
+    var hasMaxHiring = !isNaN(maxHiring) && maxHiring > 0;
+
+    var currentCountRaw = (jCountCol < targetJobRow.length && targetJobRow[jCountCol] !== undefined && targetJobRow[jCountCol] !== null)
+      ? targetJobRow[jCountCol].toString().trim()
+      : "0";
+    var currentAppCount = parseInt(currentCountRaw, 10);
+    if (isNaN(currentAppCount) || currentAppCount < 0) {
+      currentAppCount = 0;
+    }
+
+    // Check status
+    if (currentStatusLower !== "active") {
+      if (currentStatusLower === "closed") {
+        return jsonResponse({
+          success: false,
+          message: "Maximum number of hiring for this job has been reached. Applications are closed."
+        });
+      }
+      return jsonResponse({
+        success: false,
+        message: "This job is currently inactive and not accepting applications"
+      });
+    }
+
+    // Verify limit BEFORE adding application
+    if (hasMaxHiring && currentAppCount >= maxHiring) {
+      // Ensure job status is set to Closed in the sheet
+      jobsSheet.getRange(targetJobRowIndex, jStatusCol + 1).setValue("Closed");
+      return jsonResponse({
+        success: false,
+        message: "Maximum number of hiring for this job has been reached. Applications are closed."
+      });
+    }
+
+    // 3. Create Application
     var appId = "APP" + new Date().getTime();
     var appliedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
-    var status = "Applied";
+    appSheet.appendRow([appId, jobId, userId, appliedDate, "Applied"]);
 
-    sheet.appendRow([appId, jobId, userId, appliedDate, status]);
+    // 4. Increment Application Count
+    var newAppCount = currentAppCount + 1;
+    jobsSheet.getRange(targetJobRowIndex, jCountCol + 1).setValue(newAppCount);
 
-    // Phase 8: Auto-create Notification on Successful Job Application
+    // 5. Automatic Job Closing: If new count reaches or exceeds max hiring, set Status = Closed
+    if (hasMaxHiring && newAppCount >= maxHiring) {
+      jobsSheet.getRange(targetJobRowIndex, jStatusCol + 1).setValue("Closed");
+    }
+
+    // 6. Notification
     addNotification(ss, userId, "Application Submitted", "Your application for Job ID " + jobId + " was successfully submitted.", "application");
 
     return jsonResponse({
@@ -249,6 +428,12 @@ function applyForJob(e) {
     });
   } catch (err) {
     return jsonResponse({ success: false, message: "Failed to submit application: " + err.toString() });
+  } finally {
+    if (lockAcquired) {
+      try {
+        lock.releaseLock();
+      } catch (e) {}
+    }
   }
 }
 
@@ -553,7 +738,7 @@ function handlePostJob(ss, params) {
     var sheet = ss.getSheetByName("Jobs");
     if (!sheet) {
       sheet = ss.insertSheet("Jobs");
-      sheet.appendRow(["Job ID", "Title", "Company", "Location", "Job Type", "Skills", "Salary", "Description", "Status", "Posted Date"]);
+      sheet.appendRow(["Job ID", "Title", "Company", "Location", "Job Type", "Skills", "Salary", "Description", "Status", "Posted Date", "Max Hiring", "Application Count"]);
     }
 
     var company = (params.company || params.companyName || params.userId || "").toString().trim();
@@ -563,15 +748,68 @@ function handlePostJob(ss, params) {
     var skills = (params.skills || params.requiredSkills || "").toString().trim();
     var salary = (params.salary || params.stipend || "").toString().trim();
     var description = (params.description || params.jobDescription || "").toString().trim();
+    var maxHiringRaw = (params.maxHiring || params.max_hiring || params.maxNoOfHiring || "").toString().trim();
+    var maxHiring = parseInt(maxHiringRaw, 10);
+    var validMaxHiring = (!isNaN(maxHiring) && maxHiring > 0) ? maxHiring : "";
 
     if (!title || !company) {
       return jsonResponse({ success: false, message: "Title and Company are required" });
     }
 
+    // Inspect existing headers and safely add Max Hiring and Application Count if missing
+    var data = sheet.getDataRange().getValues();
+    var headers = data.length > 0 ? data[0].map(function (h) { return h.toString().trim().toLowerCase(); }) : [];
+
+    var maxCol = headers.indexOf("max hiring");
+    if (maxCol === -1) maxCol = headers.indexOf("maxhiring");
+    if (maxCol === -1) maxCol = headers.indexOf("max_hiring");
+    if (maxCol === -1) {
+      sheet.getRange(1, headers.length + 1).setValue("Max Hiring");
+      headers.push("max hiring");
+      maxCol = headers.length - 1;
+    }
+
+    var appCol = headers.indexOf("application count");
+    if (appCol === -1) appCol = headers.indexOf("applicationcount");
+    if (appCol === -1) appCol = headers.indexOf("application_count");
+    if (appCol === -1) {
+      sheet.getRange(1, headers.length + 1).setValue("Application Count");
+      headers.push("application count");
+      appCol = headers.length - 1;
+    }
+
     var jobId = "JOB" + new Date().getTime();
     var postedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
 
-    sheet.appendRow([jobId, title, company, location, jobType, skills, salary, description, "Active", postedDate]);
+    var rowValues = new Array(headers.length);
+    for (var i = 0; i < headers.length; i++) {
+      rowValues[i] = "";
+    }
+
+    var setVal = function(names, val) {
+      for (var k = 0; k < names.length; k++) {
+        var idx = headers.indexOf(names[k].toLowerCase());
+        if (idx !== -1) {
+          rowValues[idx] = val;
+          return;
+        }
+      }
+    };
+
+    setVal(["job id", "jobid", "id"], jobId);
+    setVal(["title", "job title", "jobtitle"], title);
+    setVal(["company", "company name", "companyname"], company);
+    setVal(["location"], location);
+    setVal(["job type", "jobtype", "type"], jobType);
+    setVal(["skills", "required skills", "requiredskills"], skills);
+    setVal(["salary", "stipend"], salary);
+    setVal(["description", "job description", "jobdescription"], description);
+    setVal(["status", "job status", "jobstatus"], "Active");
+    setVal(["posted date", "posteddate", "date"], postedDate);
+    setVal(["max hiring", "maxhiring", "max_hiring", "max no of hiring"], validMaxHiring);
+    setVal(["application count", "applicationcount", "application_count"], 0);
+
+    sheet.appendRow(rowValues);
 
     return jsonResponse({
       success: true,
@@ -1227,6 +1465,138 @@ function handleUpdateCompanyStatus(ss, params) {
   }
 }
 
+// Action: update_job_status
+function handleUpdateJobStatus(ss, params) {
+  try {
+    var jobIdReq = (params.jobId || params.id || "").toString().trim();
+    var statusReq = (params.status || "").toString().trim();
+
+    if (!jobIdReq) {
+      return jsonResponse({ success: false, message: "Job ID is required" });
+    }
+    if (!statusReq) {
+      return jsonResponse({ success: false, message: "Status is required" });
+    }
+
+    var normStatus = statusReq.toLowerCase();
+    if (normStatus !== "active" && normStatus !== "inactive" && normStatus !== "closed") {
+      return jsonResponse({ success: false, message: "Status must be 'Active', 'Inactive', or 'Closed'" });
+    }
+    var finalStatus = (normStatus === "active") ? "Active" : ((normStatus === "closed") ? "Closed" : "Inactive");
+
+    var sheet = ss.getSheetByName("Jobs");
+    if (!sheet) {
+      return jsonResponse({ success: false, message: "Jobs sheet not found" });
+    }
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var jobIdCol = headers.indexOf("job id");
+    if (jobIdCol === -1) jobIdCol = headers.indexOf("jobid");
+    if (jobIdCol === -1) jobIdCol = headers.indexOf("id");
+    if (jobIdCol === -1) jobIdCol = 0;
+
+    var statusCol = headers.indexOf("status");
+    if (statusCol === -1) statusCol = headers.indexOf("job status");
+    if (statusCol === -1) statusCol = headers.indexOf("jobstatus");
+    if (statusCol === -1) statusCol = 8;
+
+    var titleCol = headers.indexOf("title");
+    if (titleCol === -1) titleCol = headers.indexOf("job title");
+    if (titleCol === -1) titleCol = headers.indexOf("jobtitle");
+    if (titleCol === -1) titleCol = 1;
+
+    var companyCol = headers.indexOf("company");
+    if (companyCol === -1) companyCol = headers.indexOf("company name");
+    if (companyCol === -1) companyCol = headers.indexOf("companyname");
+    if (companyCol === -1) companyCol = 2;
+
+    var rowIndex = -1;
+    var foundJobId = "";
+    var jobTitle = "";
+    var companyName = "";
+
+    for (var i = 1; i < data.length; i++) {
+      var rJobId = data[i][jobIdCol] ? String(data[i][jobIdCol]).trim() : "";
+      if (rJobId.toLowerCase() === jobIdReq.toLowerCase()) {
+        rowIndex = i + 1;
+        foundJobId = rJobId;
+        jobTitle = data[i][titleCol] ? String(data[i][titleCol]).trim() : "Job";
+        companyName = data[i][companyCol] ? String(data[i][companyCol]).trim() : "";
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    // Update ONLY the Status column
+    sheet.getRange(rowIndex, statusCol + 1).setValue(finalStatus);
+
+    // Identify company associated with the job and send notification
+    var targetUserId = companyName;
+    var usersSheet = ss.getSheetByName("Users");
+    if (usersSheet && companyName) {
+      var uData = usersSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var uIdCol = uHeaders.indexOf("user id");
+        if (uIdCol === -1) uIdCol = uHeaders.indexOf("userid");
+        if (uIdCol === -1) uIdCol = 0;
+        var uNameCol = uHeaders.indexOf("name");
+        if (uNameCol === -1) uNameCol = uHeaders.indexOf("company name");
+        if (uNameCol === -1) uNameCol = 1;
+        var uEmailCol = uHeaders.indexOf("email");
+        if (uEmailCol === -1) uEmailCol = 2;
+
+        for (var j = 1; j < uData.length; j++) {
+          var uId = uData[j][uIdCol] ? String(uData[j][uIdCol]).trim() : "";
+          var uName = uData[j][uNameCol] ? String(uData[j][uNameCol]).trim() : "";
+          var uEmail = uData[j][uEmailCol] ? String(uData[j][uEmailCol]).trim() : "";
+          if (uId.toLowerCase() === companyName.toLowerCase() ||
+            uName.toLowerCase() === companyName.toLowerCase() ||
+            uEmail.toLowerCase() === companyName.toLowerCase()) {
+            targetUserId = uId;
+            break;
+          }
+        }
+      }
+    }
+
+    var notifTitle = "";
+    var notifMsg = "";
+    if (finalStatus === "Inactive") {
+      notifTitle = "Job Deactivated by Admin";
+      notifMsg = 'Your job "' + jobTitle + '" has been deactivated by the administrator.\nStudents cannot view or apply for this job.';
+    } else {
+      notifTitle = "Job Activated by Admin";
+      notifMsg = 'Your job "' + jobTitle + '" has been activated by the administrator.\nStudents can now view and apply for this job.';
+    }
+
+    if (targetUserId) {
+      addNotification(ss, targetUserId, notifTitle, notifMsg, "job_status");
+      if (companyName && companyName.toLowerCase() !== targetUserId.toLowerCase()) {
+        addNotification(ss, companyName, notifTitle, notifMsg, "job_status");
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Job status updated to " + finalStatus + " successfully",
+      jobId: foundJobId,
+      status: finalStatus
+    });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Failed to update job status: " + err.toString() });
+  }
+}
+
 // Phase 15 Functions: Analytics & Reports
 
 function handleGetMostDemandedSkills(ss, params) {
@@ -1416,7 +1786,7 @@ function handleGetReadinessDistribution(ss, params) {
       if (s.github) compScore += 7.5;
       if (s.linkedin) compScore += 7.5;
 
-      var sSkillList = s.skills ? s.skills.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; }) : [];
+      var sSkillList = s.skills ? s.skills.split(/[,/;\n|]/).map(function (sk) { return sk.trim().toLowerCase(); }).filter(function (sk) { return sk.length > 0; }) : [];
       if (sSkillList.length >= 5) compScore += 25.0;
       else if (sSkillList.length >= 3) compScore += 18.0;
       else if (sSkillList.length >= 1) compScore += 10.0;
@@ -1430,7 +1800,7 @@ function handleGetReadinessDistribution(ss, params) {
         var totalMatchSum = 0.0;
         for (var jIdx = 0; jIdx < activeJobs.length; jIdx++) {
           var jobSkillStr = activeJobs[jIdx];
-          var reqSkills = jobSkillStr ? jobSkillStr.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; }) : [];
+          var reqSkills = jobSkillStr ? jobSkillStr.split(/[,/;\n|]/).map(function (sk) { return sk.trim().toLowerCase(); }).filter(function (sk) { return sk.length > 0; }) : [];
           if (reqSkills.length === 0) {
             totalMatchSum += 100.0;
           } else {
@@ -1519,7 +1889,7 @@ function handleGetTopRecommendedJobs(ss, params) {
         var sCol = pHeaders.indexOf("skills");
         for (var p = 1; p < pData.length; p++) {
           var pSkills = (sCol !== -1 && pData[p][sCol]) ? pData[p][sCol].toString().trim() : "";
-          var tokens = pSkills.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; });
+          var tokens = pSkills.split(/[,/;\n|]/).map(function (sk) { return sk.trim().toLowerCase(); }).filter(function (sk) { return sk.length > 0; });
           studentSkillsList.push(tokens);
         }
       }
@@ -1531,7 +1901,7 @@ function handleGetTopRecommendedJobs(ss, params) {
 
     for (var i = 0; i < jobsList.length; i++) {
       var job = jobsList[i];
-      var reqSkills = job.skills.split(/[,/;\n|]/).map(function(sk){ return sk.trim().toLowerCase(); }).filter(function(sk){ return sk.length > 0; });
+      var reqSkills = job.skills.split(/[,/;\n|]/).map(function (sk) { return sk.trim().toLowerCase(); }).filter(function (sk) { return sk.length > 0; });
 
       var count = 0;
       var totalMatchPct = 0;
@@ -1740,7 +2110,7 @@ function handleGetAdminStudents(ss, params) {
       var pData = profSheet.getDataRange().getValues();
       if (pData.length > 1) {
         var pHeaders = pData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
-        var getPVal = function(pRow, names) {
+        var getPVal = function (pRow, names) {
           for (var k = 0; k < names.length; k++) {
             var idx = pHeaders.indexOf(names[k].toLowerCase());
             if (idx !== -1 && pRow[idx] !== undefined && pRow[idx] !== null) return pRow[idx].toString().trim();

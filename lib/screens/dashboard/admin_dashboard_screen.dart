@@ -7,6 +7,7 @@ import '../../models/job.dart';
 import '../../models/user_session.dart';
 import '../../routes/app_routes.dart';
 import '../../services/google_sheets_service.dart';
+import '../admin/admin_manage_jobs_screen.dart';
 import '../../widgets/analytics_reports_widget.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/fade_slide_transition.dart';
@@ -18,6 +19,48 @@ class AdminDashboardScreen extends StatefulWidget {
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+  final Color backgroundColor;
+  final Color borderColor;
+
+  const _SliverTabBarDelegate(
+    this.tabBar, {
+    required this.backgroundColor,
+    required this.borderColor,
+  });
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border(
+          bottom: BorderSide(
+            color: borderColor.withValues(alpha: 0.6),
+            width: 1,
+          ),
+        ),
+      ),
+      child: tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
+    return tabBar != oldDelegate.tabBar ||
+        backgroundColor != oldDelegate.backgroundColor ||
+        borderColor != oldDelegate.borderColor;
+  }
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen>
@@ -241,6 +284,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Widget _buildApprovalsHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 4, 2, 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Expanded(
+            child: Text(
+              'Review and manage company account access',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (!_isLoadingApprovals && _pendingApprovals.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_pendingApprovals.length} Accounts',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = UserSession();
@@ -257,26 +341,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           children: [
             const AppLogo(size: 34),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Admin Portal',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.getTextPrimary(context),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Admin Portal',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.getTextPrimary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Text(
-                  'ID: $adminId',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.redAccent,
+                  Text(
+                    'ID: $adminId',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.redAccent,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -297,13 +388,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       ),
       body: SafeArea(
         child: FadeSlideTransition(
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hero Section: Placement Control Center
+          child: NestedScrollView(
+            headerSliverBuilder:
+                (BuildContext context, bool innerBoxIsScrolled) {
+              return <Widget>[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Hero Section: Placement Control Center
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -331,29 +426,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.verified_user_rounded,
-                                  color: Colors.white, size: 14),
-                              SizedBox(width: 5),
-                              Text(
-                                'Admin • System Administrator',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.verified_user_rounded,
+                                    color: Colors.white, size: 14),
+                                SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    'Admin • System Administrator',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         const Icon(Icons.shield_outlined,
                             color: Colors.white70, size: 24),
                       ],
@@ -422,13 +524,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 builder: (context, constraints) {
                   final double width = constraints.maxWidth;
                   final int crossAxisCount = width >= 600 ? 3 : 2;
+                  final double childAspectRatio = width >= 600
+                      ? 2.4
+                      : (width <= 360 ? 1.75 : (width <= 400 ? 1.85 : 2.1));
                   return GridView.count(
                     crossAxisCount: crossAxisCount,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
-                    childAspectRatio: width >= 600 ? 2.4 : 2.1,
+                    childAspectRatio: childAspectRatio,
                     children: [
                       _buildCompactMetricTile(
                         label: 'Students',
@@ -597,14 +702,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Overall Placement Rate',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                        const Expanded(
+                          child: Text(
+                            'Overall Placement Rate',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
@@ -683,179 +791,176 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ),
               ),
 
-              const SizedBox(height: 20),
-
-              // Tab Section: Company Approvals & Campus Drives
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Column(
-                  children: [
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverTabBarDelegate(
                     TabBar(
                       controller: _tabController,
                       indicatorColor: AppColors.primary,
                       indicatorWeight: 3,
                       labelColor: AppColors.primary,
-                      unselectedLabelColor: AppColors.textSecondary,
+                      unselectedLabelColor:
+                          AppColors.getTextSecondary(context),
                       labelStyle: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                       tabs: const [
                         Tab(text: 'Company Approvals'),
                         Tab(text: 'Active Drives'),
                         Tab(text: 'Analytics & Reports'),
                       ],
                     ),
-                    SizedBox(
-                      height: 1450,
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
+                    backgroundColor: AppColors.getSurface(context),
+                    borderColor: AppColors.getCardBorder(context),
+                  ),
+                ),
+              ];
+            },
+            body: TabBarView(
+              controller: _tabController,
+              children: [
                           // Tab 1: Company Approvals (Phase 14B Redesigned UI)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                          _isLoadingApprovals
+                              ? ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 8),
                                   children: [
-                                    const Text(
-                                      'Review and manage company account access',
-                                      style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w400,
+                                    _buildApprovalsHeader(),
+                                    const Padding(
+                                      padding: EdgeInsets.all(24.0),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: AppColors.primary,
+                                        ),
                                       ),
                                     ),
-                                    if (!_isLoadingApprovals &&
-                                        _pendingApprovals.isNotEmpty)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary
-                                              .withValues(alpha: 0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          '${_pendingApprovals.length} Accounts',
-                                          style: const TextStyle(
-                                            color: AppColors.primary,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
                                   ],
-                                ),
-                              ),
-                              Expanded(
-                                child: _isLoadingApprovals
-                                    ? const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(24.0),
-                                          child: CircularProgressIndicator(
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      )
-                                    : _approvalsError != null &&
-                                            _pendingApprovals.isEmpty
-                                        ? Center(
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.all(24.0),
-                                              child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  const Icon(
-                                                    Icons.error_outline_rounded,
-                                                    color: Colors.orange,
-                                                    size: 36,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    _approvalsError!,
-                                                    textAlign: TextAlign.center,
-                                                    style: const TextStyle(
-                                                      color: AppColors
-                                                          .textSecondary,
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  TextButton.icon(
-                                                    onPressed:
-                                                        _loadAdminCompanies,
-                                                    icon: const Icon(
-                                                        Icons.refresh_rounded,
-                                                        size: 18),
-                                                    label: const Text('Retry'),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          )
-                                        : _pendingApprovals.isEmpty
-                                            ? const Center(
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(24.0),
-                                                  child: Column(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .center,
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .business_center_outlined,
-                                                        color: AppColors
-                                                            .textSecondary,
-                                                        size: 40,
-                                                      ),
-                                                      SizedBox(height: 10),
-                                                      Text(
-                                                        'No company accounts found.',
-                                                        style: TextStyle(
-                                                          color: AppColors
-                                                              .textPrimary,
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      SizedBox(height: 4),
-                                                      Text(
-                                                        'Company accounts will appear here when available.',
-                                                        style: TextStyle(
-                                                          color: AppColors
-                                                              .textSecondary,
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
+                                )
+                              : _approvalsError != null &&
+                                      _pendingApprovals.isEmpty
+                                  ? ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 8),
+                                      children: [
+                                        _buildApprovalsHeader(),
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.all(24.0),
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.error_outline_rounded,
+                                                  color: Colors.orange,
+                                                  size: 36,
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  _approvalsError!,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    color: AppColors
+                                                        .textSecondary,
+                                                    fontSize: 13,
                                                   ),
                                                 ),
-                                              )
-                                            : ListView.separated(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 14,
-                                                        vertical: 8),
-                                                itemCount:
-                                                    _pendingApprovals.length,
-                                                separatorBuilder: (context,
-                                                        index) =>
-                                                    const SizedBox(height: 10),
-                                                itemBuilder: (context, index) {
-                                                  final item =
-                                                      _pendingApprovals[index];
+                                                const SizedBox(height: 8),
+                                                TextButton.icon(
+                                                  onPressed:
+                                                      _loadAdminCompanies,
+                                                  icon: const Icon(
+                                                      Icons.refresh_rounded,
+                                                      size: 18),
+                                                  label: const Text('Retry'),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : _pendingApprovals.isEmpty
+                                      ? ListView(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 8),
+                                          children: [
+                                            _buildApprovalsHeader(),
+                                            const Padding(
+                                              padding: EdgeInsets.all(24.0),
+                                              child: Center(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .center,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons
+                                                          .business_center_outlined,
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                      size: 40,
+                                                    ),
+                                                    SizedBox(height: 10),
+                                                    Text(
+                                                      'No company accounts found.',
+                                                      style: TextStyle(
+                                                        color: AppColors
+                                                            .textPrimary,
+                                                        fontSize: 15,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 4),
+                                                    Text(
+                                                      'Company accounts will appear here when available.',
+                                                      style: TextStyle(
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : ListView.separated(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 14,
+                                                  vertical: 8),
+                                          itemCount:
+                                              _pendingApprovals.length + 1,
+                                          separatorBuilder: (context,
+                                                  index) =>
+                                              const SizedBox(height: 10),
+                                          itemBuilder: (context, index) {
+                                            if (index == 0) {
+                                              return _buildApprovalsHeader();
+                                            }
+                                            final item =
+                                                _pendingApprovals[index - 1];
                                                   final String rawStatus =
                                                       (item['status'] ?? '')
                                                           .toString()
@@ -1177,89 +1282,154 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                                             ),
                                                           ],
                                                         ),
+                                                        const SizedBox(height: 8),
+                                                        SizedBox(
+                                                          width: double.infinity,
+                                                          child: OutlinedButton.icon(
+                                                            onPressed: () {
+                                                              final String companyId = (item['userId'] ?? '').toString().trim();
+                                                              final String companyName = (item['name'] ?? item['userId'] ?? 'Company').toString().trim();
+                                                              final String? companyEmail = item['email']?.toString().trim();
+                                                              Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                  builder: (_) => AdminManageJobsScreen(
+                                                                    companyId: companyId,
+                                                                    companyName: companyName,
+                                                                    companyEmail: companyEmail,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            },
+                                                            icon: const Icon(Icons.work_outline_rounded, size: 14),
+                                                            label: const Text(
+                                                              'Manage Jobs',
+                                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                                            ),
+                                                            style: OutlinedButton.styleFrom(
+                                                              foregroundColor: AppColors.primary,
+                                                              side: BorderSide(
+                                                                color: AppColors.primary.withValues(alpha: 0.5),
+                                                              ),
+                                                              padding: const EdgeInsets.symmetric(vertical: 8),
+                                                              minimumSize: Size.zero,
+                                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                              shape: RoundedRectangleBorder(
+                                                                borderRadius: BorderRadius.circular(8),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ],
                                                     ),
                                                   );
                                                 },
                                               ),
-                              ),
-                            ],
-                          ),
 
                           // Tab 2: Active Drives (Phase 14A Real Data Integration)
                           _isLoadingDrives
-                              ? const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(24.0),
-                                    child: CircularProgressIndicator(
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                )
-                              : _drivesError != null && _placementDrives.isEmpty
-                                  ? Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(24.0),
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline_rounded,
-                                              color: Colors.orange,
-                                              size: 36,
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              _drivesError!,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: AppColors.textSecondary,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            TextButton.icon(
-                                              onPressed: _loadPlacementDrives,
-                                              icon: const Icon(
-                                                  Icons.refresh_rounded,
-                                                  size: 18),
-                                              label: const Text('Retry'),
-                                            ),
-                                          ],
+                              ? ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.all(14),
+                                  children: const [
+                                    Padding(
+                                      padding: EdgeInsets.all(24.0),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          color: AppColors.primary,
                                         ),
                                       ),
-                                    )
-                                  : _placementDrives.isEmpty
-                                      ? const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(24.0),
+                                    ),
+                                  ],
+                                )
+                              : _drivesError != null && _placementDrives.isEmpty
+                                  ? ListView(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: const EdgeInsets.all(14),
+                                      children: [
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.all(24.0),
+                                          child: Center(
                                             child: Column(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
+                                              mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(
-                                                  Icons
-                                                      .business_center_outlined,
-                                                  color:
-                                                      AppColors.textSecondary,
+                                                const Icon(
+                                                  Icons.error_outline_rounded,
+                                                  color: Colors.orange,
                                                   size: 36,
                                                 ),
-                                                SizedBox(height: 8),
+                                                const SizedBox(height: 8),
                                                 Text(
-                                                  'No active placement drives available.',
-                                                  style: TextStyle(
-                                                    color:
-                                                        AppColors.textSecondary,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w500,
+                                                  _drivesError!,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    color: AppColors
+                                                        .textSecondary,
+                                                    fontSize: 13,
                                                   ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                TextButton.icon(
+                                                  onPressed:
+                                                      _loadPlacementDrives,
+                                                  icon: const Icon(
+                                                      Icons.refresh_rounded,
+                                                      size: 18),
+                                                  label: const Text('Retry'),
                                                 ),
                                               ],
                                             ),
                                           ),
+                                        ),
+                                      ],
+                                    )
+                                  : _placementDrives.isEmpty
+                                      ? ListView(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
+                                          padding: const EdgeInsets.all(14),
+                                          children: const [
+                                            Padding(
+                                              padding: EdgeInsets.all(24.0),
+                                              child: Center(
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons
+                                                          .business_center_outlined,
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                      size: 36,
+                                                    ),
+                                                    SizedBox(height: 8),
+                                                    Text(
+                                                      'No active placement drives available.',
+                                                      style: TextStyle(
+                                                        color: AppColors
+                                                            .textSecondary,
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         )
                                       : ListView.separated(
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
                                           padding: const EdgeInsets.all(14),
                                           itemCount: _placementDrives.length,
                                           separatorBuilder:
@@ -1388,23 +1558,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                         ),
                           // Tab 3: Analytics & Reports (Phase 15)
                           const SingleChildScrollView(
-                            physics: BouncingScrollPhysics(),
+                            physics: AlwaysScrollableScrollPhysics(),
                             padding: EdgeInsets.all(14),
                             child: AnalyticsReportsWidget(),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildCompactMetricTile({
     required String label,
@@ -1421,7 +1585,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.getCardBorder(context)),
@@ -1436,26 +1600,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.getTextPrimary(context),
-                        height: 1.1,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextPrimary(context),
+                          height: 1.1,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -2511,21 +2680,37 @@ class _AdminApplicationsDetailScreenState
                                       color: AppColors.getCardBorder(context)),
                                   const SizedBox(height: 8),
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       if (appliedDate.isNotEmpty)
-                                        Text(
-                                          'Applied: $appliedDate',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.getTextSecondary(
-                                                context),
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.calendar_today_outlined,
+                                                size: 13,
+                                                color: Colors.orange,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  'Applied: ${ApplicationStatusHelper.formatDisplayDateTime(appliedDate)}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: AppColors.getTextSecondary(
+                                                        context),
+                                                  ),
+                                                  softWrap: true,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         )
                                       else
-                                        const SizedBox.shrink(),
-                                      if (resumeUrl.isNotEmpty)
+                                        const Spacer(),
+                                      if (resumeUrl.isNotEmpty) ...[
+                                        const SizedBox(width: 8),
                                         TextButton.icon(
                                           style: TextButton.styleFrom(
                                             padding: EdgeInsets.zero,
@@ -2549,6 +2734,7 @@ class _AdminApplicationsDetailScreenState
                                           onPressed: () =>
                                               _openResume(resumeUrl, name),
                                         ),
+                                      ],
                                     ],
                                   ),
                                 ],
@@ -2721,6 +2907,7 @@ class _AdminPlacementRateDetailScreenState
                         const SizedBox(height: 2),
                         const Text(
                           'Placement Rate = (Placed Applications / Total Applications) × 100',
+                          softWrap: true,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -2730,6 +2917,7 @@ class _AdminPlacementRateDetailScreenState
                         const SizedBox(height: 6),
                         Text(
                           '= (${widget.selectedCount} / ${widget.totalApplications}) × 100 = ${widget.placementPercentage.toStringAsFixed(1)}%',
+                          softWrap: true,
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
@@ -2800,31 +2988,98 @@ class _AdminPlacementRateDetailScreenState
                         color: Colors.green.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFFD1FAE5),
-                        child: Icon(Icons.check_circle, color: Color(0xFF059669)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
                       ),
-                      title: Text(
-                        name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.getTextPrimary(context),
-                        ),
-                      ),
-                      subtitle: Text(
-                        '$title • $company',
-                        style: TextStyle(
-                          color: AppColors.getTextSecondary(context),
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: Text(
-                        appliedDate,
-                        style: TextStyle(
-                          color: AppColors.getTextSecondary(context),
-                          fontSize: 11,
-                        ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const CircleAvatar(
+                            backgroundColor: Color(0xFFD1FAE5),
+                            radius: 20,
+                            child: Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF059669),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: AppColors.getTextPrimary(context),
+                                  ),
+                                  softWrap: true,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '$title • $company',
+                                  style: TextStyle(
+                                    color: AppColors.getTextSecondary(context),
+                                    fontSize: 12,
+                                  ),
+                                  softWrap: true,
+                                ),
+                                if (appliedDate.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 11,
+                                        color: Colors.orange,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          ApplicationStatusHelper
+                                              .formatDisplayDateTime(
+                                                  appliedDate),
+                                          style: TextStyle(
+                                            color: AppColors.getTextSecondary(
+                                                context),
+                                            fontSize: 11,
+                                          ),
+                                          softWrap: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD1FAE5),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFF34D399),
+                              ),
+                            ),
+                            child: const Text(
+                              'Placed',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );

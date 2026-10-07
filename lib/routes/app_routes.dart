@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/job.dart';
 import '../models/student_profile.dart';
+import '../screens/admin/admin_manage_jobs_screen.dart';
 import '../screens/admin/student_details_screen.dart';
 import '../screens/admin/system_broadcast_screen.dart';
 import '../screens/admin/user_management_screen.dart';
@@ -42,6 +43,7 @@ abstract class AppRoutes {
   static const String userManagement = '/user-management';
   static const String studentDetails = '/student-details';
   static const String systemBroadcast = '/system-broadcast';
+  static const String adminManageJobs = '/admin-manage-jobs';
 
   static Map<String, WidgetBuilder> get routes => {
         welcome: (context) => const WelcomeScreen(),
@@ -68,6 +70,16 @@ abstract class AppRoutes {
           return StudentDetailsScreen(student: args);
         },
         systemBroadcast: (context) => const SystemBroadcastScreen(),
+        adminManageJobs: (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+                  {};
+          return AdminManageJobsScreen(
+            companyId: args['companyId']?.toString() ?? '',
+            companyName: args['companyName']?.toString() ?? 'Company',
+            companyEmail: args['companyEmail']?.toString(),
+          );
+        },
         profile: (context) => const StudentProfileScreen(),
         resume: (context) => const ResumeScreen(),
         jobs: (context) => const JobsScreen(),

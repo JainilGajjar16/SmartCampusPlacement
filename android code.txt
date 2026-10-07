@@ -519,6 +519,25 @@ if (action === "update_application_status") {
 
 
     // ========================================================
+    // ADMIN - UPDATE JOB STATUS
+    // ========================================================
+
+    if (action === "update_job_status") {
+
+      const spreadsheet =
+        SpreadsheetApp.openById(
+          SPREADSHEET_ID
+        );
+
+      return handleUpdateJobStatus(
+        spreadsheet,
+        e.parameter
+      );
+
+    }
+
+
+    // ========================================================
     // PHASE 15 - GET MOST DEMANDED SKILLS
     // ========================================================
 
@@ -1609,19 +1628,74 @@ function postJob(e) {
       new Date().getTime();
 
 
-    sheet.appendRow([
+    const maxHiringRaw =
+      String(
+        e.parameter.maxHiring ||
+        e.parameter.max_hiring ||
+        e.parameter.maxNoOfHiring ||
+        ""
+      ).trim();
 
-      jobId,
-      companyName,
-      jobTitle,
-      location,
-      skills,
-      salary,
-      description,
-      new Date(),
-      "Active"
+    const maxHiring =
+      parseInt(maxHiringRaw, 10);
 
-    ]);
+    const validMaxHiring =
+      (!isNaN(maxHiring) && maxHiring > 0) ? maxHiring : "";
+
+    const data =
+      sheet.getDataRange().getValues();
+
+    const headers =
+      data.length > 0
+        ? data[0].map(function(h) { return String(h).trim().toLowerCase(); })
+        : [];
+
+    let maxCol = headers.indexOf("max hiring");
+    if (maxCol === -1) maxCol = headers.indexOf("maxhiring");
+    if (maxCol === -1) maxCol = headers.indexOf("max_hiring");
+    if (maxCol === -1) {
+      sheet.getRange(1, headers.length + 1).setValue("Max Hiring");
+      headers.push("max hiring");
+      maxCol = headers.length - 1;
+    }
+
+    let appCol = headers.indexOf("application count");
+    if (appCol === -1) appCol = headers.indexOf("applicationcount");
+    if (appCol === -1) appCol = headers.indexOf("application_count");
+    if (appCol === -1) {
+      sheet.getRange(1, headers.length + 1).setValue("Application Count");
+      headers.push("application count");
+      appCol = headers.length - 1;
+    }
+
+    const newRow = new Array(headers.length);
+    for (let c = 0; c < headers.length; c++) {
+      newRow[c] = "";
+    }
+
+    const setColVal = function(names, val) {
+      for (let k = 0; k < names.length; k++) {
+        const idx = headers.indexOf(names[k].toLowerCase());
+        if (idx !== -1) {
+          newRow[idx] = val;
+          return;
+        }
+      }
+    };
+
+    setColVal(["job id", "jobid", "id"], jobId);
+    setColVal(["company name", "company", "companyname"], companyName);
+    setColVal(["job title", "title", "jobtitle"], jobTitle);
+    setColVal(["location"], location);
+    setColVal(["required skills", "skills", "requiredskills"], skills);
+    setColVal(["salary", "stipend"], salary);
+    setColVal(["description"], description);
+    setColVal(["posted date", "date"], new Date());
+    setColVal(["status", "job status"], "Active");
+    setColVal(["max hiring", "maxhiring", "max_hiring", "max no of hiring"], validMaxHiring);
+    setColVal(["application count", "applicationcount", "application_count"], 0);
+
+    sheet.appendRow(newRow);
 
 
     return jsonResponse({
@@ -2303,6 +2377,9 @@ function handleGetJobs(ss, params) {
         }
       );
 
+    params = params || {};
+    const includeInactive = (params.includeInactive === "true" || params.includeInactive === true || params.all === "true");
+    const filterCompany = String(params.company || params.companyName || params.companyId || "").trim().toLowerCase();
 
     const jobs = [];
 
@@ -2424,17 +2501,56 @@ function handleGetJobs(ss, params) {
         ]);
 
 
-      const statusLower =
-        status.toLowerCase();
+      const maxHiringRaw =
+        getValue([
+          "max hiring",
+          "maxhiring",
+          "max_hiring",
+          "max no of hiring"
+        ]);
+      const parsedMax =
+        parseInt(maxHiringRaw, 10);
+      const maxHiring =
+        (!isNaN(parsedMax) && parsedMax > 0) ? parsedMax : null;
 
+      const appCountRaw =
+        getValue([
+          "application count",
+          "applicationcount",
+          "application_count",
+          "applications"
+        ]);
+      const parsedCount =
+        parseInt(appCountRaw, 10);
+      const applicationCount =
+        (!isNaN(parsedCount) && parsedCount >= 0) ? parsedCount : 0;
 
-      if (
-        statusLower !== "" &&
-        statusLower !== "active"
-      ) {
+      let effectiveStatus =
+        status || "Active";
+      let statusLower =
+        effectiveStatus.toLowerCase();
 
-        continue;
+      if (maxHiring !== null && maxHiring > 0 && applicationCount >= maxHiring) {
+        if (statusLower === "active") {
+          effectiveStatus = "Closed";
+          statusLower = "closed";
+        }
+      }
 
+      if (filterCompany !== "") {
+        const compLower = company.toLowerCase();
+        if (compLower !== filterCompany && compLower.indexOf(filterCompany) === -1 && filterCompany.indexOf(compLower) === -1) {
+          continue;
+        }
+      }
+
+      if (!includeInactive) {
+        if (
+          statusLower !== "active" &&
+          statusLower !== "closed"
+        ) {
+          continue;
+        }
       }
 
 
@@ -2471,11 +2587,16 @@ function handleGetJobs(ss, params) {
             description,
 
           status:
-            status ||
-            "Active",
+            effectiveStatus,
 
           postedDate:
-            postedDate
+            postedDate,
+
+          maxHiring:
+            maxHiring,
+
+          applicationCount:
+            applicationCount
 
         });
 
@@ -2658,11 +2779,46 @@ function handleGetJobDetails(ss, params) {
             "jobstatus"
           ]);
 
+        const maxHiringRaw =
+          getValue([
+            "max hiring",
+            "maxhiring",
+            "max_hiring",
+            "max no of hiring"
+          ]);
+        const parsedMax =
+          parseInt(maxHiringRaw, 10);
+        const maxHiring =
+          (!isNaN(parsedMax) && parsedMax > 0) ? parsedMax : null;
+
+        const appCountRaw =
+          getValue([
+            "application count",
+            "applicationcount",
+            "application_count",
+            "applications"
+          ]);
+        const parsedCount =
+          parseInt(appCountRaw, 10);
+        const applicationCount =
+          (!isNaN(parsedCount) && parsedCount >= 0) ? parsedCount : 0;
+
+        let effectiveStatus =
+          status || "Active";
+        let statusLower =
+          effectiveStatus.toLowerCase();
+
+        if (maxHiring !== null && maxHiring > 0 && applicationCount >= maxHiring) {
+          if (statusLower === "active") {
+            effectiveStatus = "Closed";
+            statusLower = "closed";
+          }
+        }
 
         if (
-          status !== "" &&
-          status.toLowerCase() !==
-          "active"
+          statusLower !== "" &&
+          statusLower !== "active" &&
+          statusLower !== "closed"
         ) {
 
           return jsonResponse({
@@ -2729,8 +2885,7 @@ function handleGetJobDetails(ss, params) {
             ]),
 
           status:
-            status ||
-            "Active",
+            effectiveStatus,
 
           postedDate:
             getValue([
@@ -2739,7 +2894,13 @@ function handleGetJobDetails(ss, params) {
               "date",
               "created at",
               "createdat"
-            ])
+            ]),
+
+          maxHiring:
+            maxHiring,
+
+          applicationCount:
+            applicationCount
 
         };
 
@@ -2788,8 +2949,17 @@ function handleGetJobDetails(ss, params) {
 // ==========================================================
 
 function applyForJob(e) {
+  const lock = LockService.getScriptLock();
+  let lockAcquired = false;
 
   try {
+    lockAcquired = lock.tryLock(20000);
+    if (!lockAcquired) {
+      return jsonResponse({
+        success: false,
+        message: "Server is currently busy. Please try submitting your application again."
+      });
+    }
 
     const userId =
       String(
@@ -2801,35 +2971,28 @@ function applyForJob(e) {
         e.parameter.jobId || ""
       ).trim();
 
-
     if (
       userId === "" ||
       jobId === ""
     ) {
-
       return jsonResponse({
         success: false,
         message:
           "User ID and Job ID are required"
       });
-
     }
-
 
     const spreadsheet =
       SpreadsheetApp.openById(
         SPREADSHEET_ID
       );
 
-
     let sheet =
       spreadsheet.getSheetByName(
         APPLICATIONS_SHEET_NAME
       );
 
-
     if (!sheet) {
-
       sheet =
         spreadsheet.insertSheet(
           APPLICATIONS_SHEET_NAME
@@ -2842,21 +3005,17 @@ function applyForJob(e) {
         "Applied Date",
         "Status"
       ]);
-
     }
-
 
     const data =
       sheet.getDataRange()
         .getValues();
-
 
     for (
       let i = 1;
       i < data.length;
       i++
     ) {
-
       const existingJobId =
         String(
           data[i][1] || ""
@@ -2867,46 +3026,146 @@ function applyForJob(e) {
           data[i][2] || ""
         ).trim();
 
-
       if (
         existingJobId.toLowerCase() ===
           jobId.toLowerCase() &&
         existingUserId.toLowerCase() ===
           userId.toLowerCase()
       ) {
-
         return jsonResponse({
-
           success: false,
-
           message:
             "You have already applied for this job"
-
         });
-
       }
-
     }
 
+    // Check Jobs sheet for existence, status, and max hiring limit
+    const jobsSheet =
+      spreadsheet.getSheetByName(
+        JOBS_SHEET_NAME
+      );
+
+    if (!jobsSheet) {
+      return jsonResponse({
+        success: false,
+        message: "Job not found"
+      });
+    }
+
+    const jData =
+      jobsSheet.getDataRange().getValues();
+
+    if (jData.length <= 1) {
+      return jsonResponse({
+        success: false,
+        message: "Job not found"
+      });
+    }
+
+    const jHeaders =
+      jData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+
+    const findCol = function(names, fallback) {
+      for (let k = 0; k < names.length; k++) {
+        const idx = jHeaders.indexOf(names[k].toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      return fallback;
+    };
+
+    const jIdCol = findCol(["job id", "jobid", "id"], 0);
+    const jStatusCol = findCol(["status", "job status", "jobstatus"], 8);
+
+    let jMaxCol = findCol(["max hiring", "maxhiring", "max_hiring", "max no of hiring"], -1);
+    if (jMaxCol === -1) {
+      jobsSheet.getRange(1, jHeaders.length + 1).setValue("Max Hiring");
+      jHeaders.push("max hiring");
+      jMaxCol = jHeaders.length - 1;
+    }
+
+    let jCountCol = findCol(["application count", "applicationcount", "application_count", "applications"], -1);
+    if (jCountCol === -1) {
+      jobsSheet.getRange(1, jHeaders.length + 1).setValue("Application Count");
+      jHeaders.push("application count");
+      jCountCol = jHeaders.length - 1;
+    }
+
+    let targetJobRowIndex = -1;
+    let targetJobRow = null;
+
+    for (let j = 1; j < jData.length; j++) {
+      const rowId = jData[j][jIdCol] ? String(jData[j][jIdCol]).trim().toLowerCase() : "";
+      if (rowId === jobId.toLowerCase()) {
+        targetJobRowIndex = j + 1;
+        targetJobRow = jData[j];
+        break;
+      }
+    }
+
+    if (targetJobRowIndex === -1 || !targetJobRow) {
+      return jsonResponse({
+        success: false,
+        message: "Job not found"
+      });
+    }
+
+    const currentStatus = targetJobRow[jStatusCol] ? String(targetJobRow[jStatusCol]).trim() : "Active";
+    const currentStatusLower = currentStatus.toLowerCase();
+
+    const maxHiringRaw = (jMaxCol < targetJobRow.length && targetJobRow[jMaxCol] !== undefined && targetJobRow[jMaxCol] !== null)
+      ? String(targetJobRow[jMaxCol]).trim()
+      : "";
+    const maxHiring = parseInt(maxHiringRaw, 10);
+    const hasMaxHiring = !isNaN(maxHiring) && maxHiring > 0;
+
+    const currentCountRaw = (jCountCol < targetJobRow.length && targetJobRow[jCountCol] !== undefined && targetJobRow[jCountCol] !== null)
+      ? String(targetJobRow[jCountCol]).trim()
+      : "0";
+    let currentAppCount = parseInt(currentCountRaw, 10);
+    if (isNaN(currentAppCount) || currentAppCount < 0) {
+      currentAppCount = 0;
+    }
+
+    if (currentStatusLower !== "active") {
+      if (currentStatusLower === "closed") {
+        return jsonResponse({
+          success: false,
+          message: "Maximum number of hiring for this job has been reached. Applications are closed."
+        });
+      }
+      return jsonResponse({
+        success: false,
+        message: "This job is currently inactive and not accepting applications"
+      });
+    }
+
+    if (hasMaxHiring && currentAppCount >= maxHiring) {
+      jobsSheet.getRange(targetJobRowIndex, jStatusCol + 1).setValue("Closed");
+      return jsonResponse({
+        success: false,
+        message: "Maximum number of hiring for this job has been reached. Applications are closed."
+      });
+    }
 
     const applicationId =
       "APP" +
       new Date().getTime();
 
-
     sheet.appendRow([
-
       applicationId,
       jobId,
       userId,
       new Date(),
       "Applied"
-
     ]);
 
-    // ========================================================
-    // PHASE 8 - CREATE APPLICATION NOTIFICATION
-    // ========================================================
+    const newAppCount = currentAppCount + 1;
+    jobsSheet.getRange(targetJobRowIndex, jCountCol + 1).setValue(newAppCount);
+
+    if (hasMaxHiring && newAppCount >= maxHiring) {
+      jobsSheet.getRange(targetJobRowIndex, jStatusCol + 1).setValue("Closed");
+    }
 
     addNotification(
       spreadsheet,
@@ -2916,39 +3175,31 @@ function applyForJob(e) {
       "application"
     );
 
-
     return jsonResponse({
-
       success: true,
-
       message:
         "Application submitted successfully",
-
       applicationId:
         applicationId,
-
       status:
         "Applied"
-
     });
-
 
   } catch (error) {
-
     return jsonResponse({
-
       success: false,
-
       message:
         "Job application failed",
-
       details:
         error.toString()
-
     });
-
+  } finally {
+    if (lockAcquired) {
+      try {
+        lock.releaseLock();
+      } catch (e) {}
+    }
   }
-
 }
 
 
@@ -4916,6 +5167,138 @@ function handleUpdateCompanyStatus(ss, params) {
     return jsonResponse({ success: false, message: "Company account not found" });
   } catch (err) {
     return jsonResponse({ success: false, message: "Failed to update company status: " + err.toString() });
+  }
+}
+
+// Action: update_job_status
+function handleUpdateJobStatus(ss, params) {
+  try {
+    var jobIdReq = (params.jobId || params.id || "").toString().trim();
+    var statusReq = (params.status || "").toString().trim();
+
+    if (!jobIdReq) {
+      return jsonResponse({ success: false, message: "Job ID is required" });
+    }
+    if (!statusReq) {
+      return jsonResponse({ success: false, message: "Status is required" });
+    }
+
+    var normStatus = statusReq.toLowerCase();
+    if (normStatus !== "active" && normStatus !== "inactive" && normStatus !== "closed") {
+      return jsonResponse({ success: false, message: "Status must be 'Active', 'Inactive', or 'Closed'" });
+    }
+    var finalStatus = (normStatus === "active") ? "Active" : ((normStatus === "closed") ? "Closed" : "Inactive");
+
+    var sheet = ss.getSheetByName(JOBS_SHEET_NAME || "Jobs");
+    if (!sheet) {
+      return jsonResponse({ success: false, message: "Jobs sheet not found" });
+    }
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    var headers = data[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+
+    var jobIdCol = headers.indexOf("job id");
+    if (jobIdCol === -1) jobIdCol = headers.indexOf("jobid");
+    if (jobIdCol === -1) jobIdCol = headers.indexOf("id");
+    if (jobIdCol === -1) jobIdCol = 0;
+
+    var statusCol = headers.indexOf("status");
+    if (statusCol === -1) statusCol = headers.indexOf("job status");
+    if (statusCol === -1) statusCol = headers.indexOf("jobstatus");
+    if (statusCol === -1) statusCol = 8;
+
+    var titleCol = headers.indexOf("title");
+    if (titleCol === -1) titleCol = headers.indexOf("job title");
+    if (titleCol === -1) titleCol = headers.indexOf("jobtitle");
+    if (titleCol === -1) titleCol = 1;
+
+    var companyCol = headers.indexOf("company");
+    if (companyCol === -1) companyCol = headers.indexOf("company name");
+    if (companyCol === -1) companyCol = headers.indexOf("companyname");
+    if (companyCol === -1) companyCol = 2;
+
+    var rowIndex = -1;
+    var foundJobId = "";
+    var jobTitle = "";
+    var companyName = "";
+
+    for (var i = 1; i < data.length; i++) {
+      var rJobId = data[i][jobIdCol] ? String(data[i][jobIdCol]).trim() : "";
+      if (rJobId.toLowerCase() === jobIdReq.toLowerCase()) {
+        rowIndex = i + 1;
+        foundJobId = rJobId;
+        jobTitle = data[i][titleCol] ? String(data[i][titleCol]).trim() : "Job";
+        companyName = data[i][companyCol] ? String(data[i][companyCol]).trim() : "";
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return jsonResponse({ success: false, message: "Job not found" });
+    }
+
+    // Update ONLY the Status column
+    sheet.getRange(rowIndex, statusCol + 1).setValue(finalStatus);
+
+    // Identify company associated with the job and send notification
+    var targetUserId = companyName;
+    var usersSheet = ss.getSheetByName(USERS_SHEET_NAME || "Users");
+    if (usersSheet && companyName) {
+      var uData = usersSheet.getDataRange().getValues();
+      if (uData.length > 1) {
+        var uHeaders = uData[0].map(function (h) { return h.toString().trim().toLowerCase(); });
+        var uIdCol = uHeaders.indexOf("user id");
+        if (uIdCol === -1) uIdCol = uHeaders.indexOf("userid");
+        if (uIdCol === -1) uIdCol = 0;
+        var uNameCol = uHeaders.indexOf("name");
+        if (uNameCol === -1) uNameCol = uHeaders.indexOf("company name");
+        if (uNameCol === -1) uNameCol = 1;
+        var uEmailCol = uHeaders.indexOf("email");
+        if (uEmailCol === -1) uEmailCol = 2;
+
+        for (var j = 1; j < uData.length; j++) {
+          var uId = uData[j][uIdCol] ? String(uData[j][uIdCol]).trim() : "";
+          var uName = uData[j][uNameCol] ? String(uData[j][uNameCol]).trim() : "";
+          var uEmail = uData[j][uEmailCol] ? String(uData[j][uEmailCol]).trim() : "";
+          if (uId.toLowerCase() === companyName.toLowerCase() ||
+              uName.toLowerCase() === companyName.toLowerCase() ||
+              uEmail.toLowerCase() === companyName.toLowerCase()) {
+            targetUserId = uId;
+            break;
+          }
+        }
+      }
+    }
+
+    var notifTitle = "";
+    var notifMsg = "";
+    if (finalStatus === "Inactive") {
+      notifTitle = "Job Deactivated by Admin";
+      notifMsg = 'Your job "' + jobTitle + '" has been deactivated by the administrator.\nStudents cannot view or apply for this job.';
+    } else {
+      notifTitle = "Job Activated by Admin";
+      notifMsg = 'Your job "' + jobTitle + '" has been activated by the administrator.\nStudents can now view and apply for this job.';
+    }
+
+    if (targetUserId) {
+      addNotification(ss, targetUserId, notifTitle, notifMsg, "job_status");
+      if (companyName && companyName.toLowerCase() !== targetUserId.toLowerCase()) {
+        addNotification(ss, companyName, notifTitle, notifMsg, "job_status");
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      message: "Job status updated to " + finalStatus + " successfully",
+      jobId: foundJobId,
+      status: finalStatus
+    });
+  } catch (err) {
+    return jsonResponse({ success: false, message: "Failed to update job status: " + err.toString() });
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/application_status_helper.dart';
 import '../../models/system_broadcast.dart';
 import '../../services/google_sheets_service.dart';
 
@@ -350,29 +351,57 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(
-                            value: 'all',
-                            label: Text('All Users'),
-                            icon: Icon(Icons.people_rounded, size: 16),
-                          ),
-                          ButtonSegment(
-                            value: 'student',
-                            label: Text('Students'),
-                            icon: Icon(Icons.school_rounded, size: 16),
-                          ),
-                          ButtonSegment(
-                            value: 'company',
-                            label: Text('Recruiters'),
-                            icon: Icon(Icons.business_rounded, size: 16),
-                          ),
-                        ],
-                        selected: {_selectedAudience},
-                        onSelectionChanged: (newSelection) {
-                          setState(() {
-                            _selectedAudience = newSelection.first;
-                          });
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                minWidth: constraints.maxWidth,
+                              ),
+                              child: SegmentedButton<String>(
+                                showSelectedIcon: false,
+                                style: const ButtonStyle(
+                                  visualDensity: VisualDensity.compact,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                segments: const [
+                                  ButtonSegment(
+                                    value: 'all',
+                                    label: Text(
+                                      'All Users',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    icon: Icon(Icons.people_rounded, size: 16),
+                                  ),
+                                  ButtonSegment(
+                                    value: 'student',
+                                    label: Text(
+                                      'Students',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    icon: Icon(Icons.school_rounded, size: 16),
+                                  ),
+                                  ButtonSegment(
+                                    value: 'company',
+                                    label: Text(
+                                      'Recruiters',
+                                      style: TextStyle(fontSize: 12),
+                                    ),
+                                    icon:
+                                        Icon(Icons.business_rounded, size: 16),
+                                  ),
+                                ],
+                                selected: {_selectedAudience},
+                                onSelectionChanged: (newSelection) {
+                                  setState(() {
+                                    _selectedAudience = newSelection.first;
+                                  });
+                                },
+                              ),
+                            ),
+                          );
                         },
                       ),
 
@@ -460,13 +489,16 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
                                   ),
                                 )
                               : const Icon(Icons.send_rounded),
-                          label: Text(
-                            _isSubmitting
-                                ? 'Sending Broadcast...'
-                                : 'Send Broadcast Announcement',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              _isSubmitting
+                                  ? 'Sending Broadcast...'
+                                  : 'Send Broadcast Announcement',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           onPressed: _isSubmitting ? null : _showConfirmationDialog,
@@ -615,6 +647,7 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
                     padding:
@@ -632,11 +665,15 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   if (item.date.isNotEmpty)
-                    Text(
-                      item.date,
-                      style: TextStyle(fontSize: 11, color: subtextColor),
+                    Expanded(
+                      child: Text(
+                        ApplicationStatusHelper.formatDisplayDateTime(item.date),
+                        textAlign: TextAlign.end,
+                        style: TextStyle(fontSize: 11, color: subtextColor),
+                        softWrap: true,
+                      ),
                     ),
                 ],
               ),
@@ -648,6 +685,7 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
                   fontWeight: FontWeight.bold,
                   color: textColor,
                 ),
+                softWrap: true,
               ),
               const SizedBox(height: 6),
               Text(
@@ -657,6 +695,7 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
                   color: subtextColor,
                   height: 1.4,
                 ),
+                softWrap: true,
               ),
               const SizedBox(height: 10),
               Row(
@@ -664,12 +703,15 @@ class _SystemBroadcastScreenState extends State<SystemBroadcastScreen> {
                   Icon(Icons.person_pin_rounded,
                       size: 14, color: subtextColor.withValues(alpha: 0.7)),
                   const SizedBox(width: 4),
-                  Text(
-                    'Sent by ${item.createdBy}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      color: subtextColor.withValues(alpha: 0.8),
+                  Expanded(
+                    child: Text(
+                      'Sent by ${item.createdBy}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: subtextColor.withValues(alpha: 0.8),
+                      ),
+                      softWrap: true,
                     ),
                   ),
                 ],

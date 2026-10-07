@@ -8,10 +8,7 @@ import '../../services/google_sheets_service.dart';
 class StudentDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> student;
 
-  const StudentDetailsScreen({
-    super.key,
-    required this.student,
-  });
+  const StudentDetailsScreen({super.key, required this.student});
 
   @override
   State<StudentDetailsScreen> createState() => _StudentDetailsScreenState();
@@ -35,7 +32,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
   Future<void> _loadFullStudentProfile() async {
     final String userId =
-        (_studentData['userId'] ?? _studentData['studentId'] ?? '').toString().trim();
+        (_studentData['userId'] ?? _studentData['studentId'] ?? '')
+            .toString()
+            .trim();
     if (userId.isEmpty) {
       if (mounted) setState(() => _isLoadingProfile = false);
       return;
@@ -62,7 +61,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   Future<void> _launchURL(String urlString) async {
     if (urlString.trim().isEmpty) return;
     String formattedUrl = urlString.trim();
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+    if (!formattedUrl.startsWith('http://') &&
+        !formattedUrl.startsWith('https://')) {
       formattedUrl = 'https://$formattedUrl';
     }
 
@@ -86,20 +86,27 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
 
   void _showEditStudentModal() {
     final nameCtrl = TextEditingController(
-        text: _studentData['name'] ?? _fullProfile?.name ?? '');
+      text: _studentData['name'] ?? _fullProfile?.name ?? '',
+    );
     final emailCtrl = TextEditingController(
-        text: _studentData['email'] ?? _fullProfile?.email ?? '');
+      text: _studentData['email'] ?? _fullProfile?.email ?? '',
+    );
     final mobileCtrl = TextEditingController(
-        text: _studentData['mobile'] ?? _fullProfile?.mobile ?? '');
+      text: _studentData['mobile'] ?? _fullProfile?.mobile ?? '',
+    );
     final courseCtrl = TextEditingController(
-        text: _studentData['course'] ??
-            _studentData['education'] ??
-            _fullProfile?.education ??
-            '');
+      text:
+          _studentData['course'] ??
+          _studentData['education'] ??
+          _fullProfile?.education ??
+          '',
+    );
     final semesterCtrl = TextEditingController(
-        text: _studentData['semester'] ?? '');
+      text: _studentData['semester'] ?? '',
+    );
     final skillsCtrl = TextEditingController(
-        text: _studentData['skills'] ?? _fullProfile?.skills ?? '');
+      text: _studentData['skills'] ?? _fullProfile?.skills ?? '',
+    );
     String currentStatus = _studentData['status']?.toString() ?? 'Active';
 
     showModalBottomSheet(
@@ -126,8 +133,12 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.edit_note_rounded,
-                            color: AppColors.primary, size: 28),
+                        const Icon(
+                          Icons.edit_note_rounded,
+
+                          color: AppColors.primary,
+                          size: 28,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Edit Student Profile',
@@ -147,17 +158,41 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                     const Divider(height: 20),
 
                     // Form Fields
-                    _buildTextField(nameCtrl, 'Full Name', Icons.person_outline),
+                    _buildTextField(
+                      nameCtrl,
+                      'Full Name',
+                      Icons.person_outline,
+                    ),
                     const SizedBox(height: 12),
-                    _buildTextField(emailCtrl, 'Email Address', Icons.email_outlined),
+                    _buildTextField(
+                      emailCtrl,
+                      'Email Address',
+                      Icons.email_outlined,
+                    ),
                     const SizedBox(height: 12),
-                    _buildTextField(mobileCtrl, 'Mobile Number', Icons.phone_outlined),
+                    _buildTextField(
+                      mobileCtrl,
+                      'Mobile Number',
+                      Icons.phone_outlined,
+                    ),
                     const SizedBox(height: 12),
-                    _buildTextField(courseCtrl, 'Course / Education', Icons.school_outlined),
+                    _buildTextField(
+                      courseCtrl,
+                      'Course / Education',
+                      Icons.school_outlined,
+                    ),
                     const SizedBox(height: 12),
-                    _buildTextField(semesterCtrl, 'Semester / Year', Icons.timeline_outlined),
+                    _buildTextField(
+                      semesterCtrl,
+                      'Semester / Year',
+                      Icons.timeline_outlined,
+                    ),
                     const SizedBox(height: 12),
-                    _buildTextField(skillsCtrl, 'Skills (comma separated)', Icons.psychology_outlined),
+                    _buildTextField(
+                      skillsCtrl,
+                      'Skills (comma separated)',
+                      Icons.psychology_outlined,
+                    ),
                     const SizedBox(height: 16),
 
                     // Status selection
@@ -174,7 +209,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       segments: const [
                         ButtonSegment(value: 'Active', label: Text('Active')),
                         ButtonSegment(value: 'Pending', label: Text('Pending')),
-                        ButtonSegment(value: 'Inactive', label: Text('Inactive')),
+                        ButtonSegment(
+                          value: 'Inactive',
+                          label: Text('Inactive'),
+                        ),
                       ],
                       selected: {currentStatus},
                       onSelectionChanged: (newSelection) {
@@ -207,14 +245,17 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                                 ),
                               )
                             : const Icon(Icons.save_rounded),
-                        label: Text(_isUpdating ? 'Saving...' : 'Save Profile Changes'),
+                        label: Text(
+                          _isUpdating ? 'Saving...' : 'Save Profile Changes',
+                        ),
                         onPressed: _isUpdating
                             ? null
                             : () async {
-                                final userId = (_studentData['userId'] ??
-                                        _studentData['studentId'] ??
-                                        '')
-                                    .toString();
+                                final userId =
+                                    (_studentData['userId'] ??
+                                            _studentData['studentId'] ??
+                                            '')
+                                        .toString();
 
                                 setModalState(() => _isUpdating = true);
 
@@ -237,20 +278,31 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                                 if (res['success'] == true) {
                                   if (mounted) {
                                     setState(() {
-                                      _studentData['name'] = nameCtrl.text.trim();
-                                      _studentData['email'] = emailCtrl.text.trim();
-                                      _studentData['mobile'] = mobileCtrl.text.trim();
-                                      _studentData['course'] = courseCtrl.text.trim();
-                                      _studentData['education'] = courseCtrl.text.trim();
-                                      _studentData['semester'] = semesterCtrl.text.trim();
-                                      _studentData['skills'] = skillsCtrl.text.trim();
+                                      _studentData['name'] = nameCtrl.text
+                                          .trim();
+                                      _studentData['email'] = emailCtrl.text
+                                          .trim();
+                                      _studentData['mobile'] = mobileCtrl.text
+                                          .trim();
+                                      _studentData['course'] = courseCtrl.text
+                                          .trim();
+                                      _studentData['education'] = courseCtrl
+                                          .text
+                                          .trim();
+                                      _studentData['semester'] = semesterCtrl
+                                          .text
+                                          .trim();
+                                      _studentData['skills'] = skillsCtrl.text
+                                          .trim();
                                       _studentData['status'] = currentStatus;
                                     });
                                     navigator.pop();
                                     messenger.showSnackBar(
                                       SnackBar(
-                                        content: Text(res['message'] ??
-                                            'Student profile updated successfully!'),
+                                        content: Text(
+                                          res['message'] ??
+                                              'Student profile updated successfully!',
+                                        ),
                                         backgroundColor: Colors.green.shade700,
                                       ),
                                     );
@@ -259,8 +311,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                                   if (mounted) {
                                     messenger.showSnackBar(
                                       SnackBar(
-                                        content: Text(res['message'] ??
-                                            'Failed to update profile.'),
+                                        content: Text(
+                                          res['message'] ??
+                                              'Failed to update profile.',
+                                        ),
                                         backgroundColor: Colors.red.shade700,
                                       ),
                                     );
@@ -291,7 +345,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
         prefixIcon: Icon(icon, size: 20, color: AppColors.primary),
         filled: true,
         fillColor: AppColors.getInputBg(context),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 12,
+          horizontal: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: AppColors.getCardBorder(context)),
@@ -316,7 +373,11 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
               ),
               title: const Row(
                 children: [
-                  Icon(Icons.delete_forever_rounded, color: Colors.red, size: 28),
+                  Icon(
+                    Icons.delete_forever_rounded,
+                    color: Colors.red,
+                    size: 28,
+                  ),
                   SizedBox(width: 8),
                   Text('Delete Student'),
                 ],
@@ -365,8 +426,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                             if (mounted) {
                               messenger.showSnackBar(
                                 SnackBar(
-                                  content: Text(res['message'] ??
-                                      'Student record deleted successfully.'),
+                                  content: Text(
+                                    res['message'] ??
+                                        'Student record deleted successfully.',
+                                  ),
                                   backgroundColor: Colors.red.shade700,
                                 ),
                               );
@@ -376,8 +439,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                             if (mounted) {
                               messenger.showSnackBar(
                                 SnackBar(
-                                  content: Text(res['message'] ??
-                                      'Failed to delete student.'),
+                                  content: Text(
+                                    res['message'] ??
+                                        'Failed to delete student.',
+                                  ),
                                   backgroundColor: Colors.red.shade700,
                                 ),
                               );
@@ -401,32 +466,33 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     final subtextColor = AppColors.getTextSecondary(context);
     final borderColor = AppColors.getCardBorder(context);
 
-    final String name = _studentData['name']?.toString() ??
+    final String name =
+        _studentData['name']?.toString() ??
         _fullProfile?.name ??
         'Unnamed Student';
-    final String email = _studentData['email']?.toString() ??
+    final String email =
+        _studentData['email']?.toString() ??
         _fullProfile?.email ??
         'No email provided';
-    final String userId = (_studentData['userId'] ??
-            _studentData['studentId'] ??
-            _fullProfile?.userId ??
-            '')
-        .toString();
-    final String mobile = _studentData['mobile']?.toString() ??
-        _fullProfile?.mobile ??
-        '';
-    final String course = _studentData['course']?.toString() ??
+    final String userId =
+        (_studentData['userId'] ??
+                _studentData['studentId'] ??
+                _fullProfile?.userId ??
+                '')
+            .toString();
+    final String mobile =
+        _studentData['mobile']?.toString() ?? _fullProfile?.mobile ?? '';
+    final String course =
+        _studentData['course']?.toString() ??
         _studentData['education']?.toString() ??
         _fullProfile?.education ??
         'Not specified';
     final String semester =
         _studentData['semester']?.toString() ?? 'Not specified';
     final String cgpa = _studentData['cgpa']?.toString() ?? '';
-    final String skills = _studentData['skills']?.toString() ??
-        _fullProfile?.skills ??
-        '';
-    final String status =
-        _studentData['status']?.toString() ?? 'Active';
+    final String skills =
+        _studentData['skills']?.toString() ?? _fullProfile?.skills ?? '';
+    final String status = _studentData['status']?.toString() ?? 'Active';
     final String github = _fullProfile?.github ?? '';
     final String linkedin = _fullProfile?.linkedin ?? '';
     final String resumeUrl = _studentData['resumeUrl']?.toString() ?? '';
@@ -434,8 +500,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
     final Color statusColor = status.toLowerCase() == 'active'
         ? Colors.green.shade700
         : (status.toLowerCase() == 'pending'
-            ? Colors.amber.shade700
-            : Colors.red.shade600);
+              ? Colors.amber.shade700
+              : Colors.red.shade600);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -494,7 +560,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                   children: [
                     CircleAvatar(
                       radius: 36,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      backgroundColor: AppColors.primary.withValues(
+                        alpha: 0.12,
+                      ),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : 'S',
                         style: const TextStyle(
@@ -524,7 +592,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.getInputBg(context),
                             borderRadius: BorderRadius.circular(8),
@@ -542,7 +612,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -613,7 +685,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                     label: 'Mobile Phone',
                     value: mobile.isNotEmpty ? mobile : 'Not provided',
                     icon: Icons.phone_android_rounded,
-                    onTap: mobile.isNotEmpty ? () => _launchURL('tel:$mobile') : null,
+                    onTap: mobile.isNotEmpty
+                        ? () => _launchURL('tel:$mobile')
+                        : null,
                   ),
                   _buildDetailRow(
                     context,
@@ -629,7 +703,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                     value: linkedin.isNotEmpty ? linkedin : 'Not linked',
                     icon: Icons.link_rounded,
                     isLink: linkedin.isNotEmpty,
-                    onTap: linkedin.isNotEmpty ? () => _launchURL(linkedin) : null,
+                    onTap: linkedin.isNotEmpty
+                        ? () => _launchURL(linkedin)
+                        : null,
                   ),
                   if (resumeUrl.isNotEmpty)
                     _buildDetailRow(
@@ -660,7 +736,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       const Padding(
                         padding: EdgeInsets.all(8.0),
                         child: Center(
-                            child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
                     else
                       Wrap(
@@ -672,8 +749,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                             .where((s) => s.isNotEmpty)
                             .map(
                               (skill) => Chip(
-                                backgroundColor:
-                                    AppColors.getIconChipBg(context),
+                                backgroundColor: AppColors.getIconChipBg(
+                                  context,
+                                ),
                                 label: Text(
                                   skill,
                                   style: const TextStyle(
@@ -773,8 +851,9 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                       fontSize: 14,
                       fontWeight: isLink ? FontWeight.bold : FontWeight.w500,
                       color: isLink ? AppColors.primary : textColor,
-                      decoration:
-                          isLink ? TextDecoration.underline : TextDecoration.none,
+                      decoration: isLink
+                          ? TextDecoration.underline
+                          : TextDecoration.none,
                     ),
                   ),
                 ],
